@@ -37,9 +37,9 @@ class Schema:
         for key in ("session_id", "utterance_id"):
             if not isinstance(obj[key], str) or not obj[key].strip():
                 return f"{key} must be a non-empty string"
-        if obj["direction"] not in cls.DIRECTIONS:
+        if not isinstance(obj["direction"], str) or obj["direction"] not in cls.DIRECTIONS:
             return "direction must be a2b or b2a"
-        if obj["event"] not in cls.EVENTS:
+        if not isinstance(obj["event"], str) or obj["event"] not in cls.EVENTS:
             return f"event must be one of {', '.join(sorted(cls.EVENTS))}"
         timestamp = obj["timestamp_ms"]
         if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)):
@@ -61,6 +61,7 @@ class Harness:
     def __init__(self) -> None:
         self.events: dict[tuple[str, str, str], dict[str, dict[str, Any]]] = {}
         self.errors: list[str] = []
+        self.compute_errors: list[str] = []
         self.samples: list[Sample] = []
         self.lines_read = 0
 
@@ -68,6 +69,7 @@ class Harness:
         """Ingest one file. Duplicate events are errors, never silently overwritten."""
         self.events.clear()
         self.errors.clear()
+        self.compute_errors.clear()
         self.samples.clear()
         self.lines_read = 0
         try:
@@ -100,6 +102,7 @@ class Harness:
     def compute(self) -> tuple[list[Sample], list[str]]:
         """Compute per-utterance latency; never add stage percentiles to infer E2E."""
         self.samples.clear()
+        self.compute_errors.clear()
         errors = self.errors.copy()
         for key, events in sorted(self.events.items()):
             if "capture_end" not in events:
@@ -122,6 +125,7 @@ class Harness:
                 capture_to_nmt_ms=stamps["nmt_end"] - capture,
                 capture_to_first_audio_ms=stamps["first_audio"] - capture,
             ))
+        self.compute_errors = errors[len(self.errors):]
         return self.samples.copy(), errors
 
     @staticmethod
@@ -156,7 +160,7 @@ class Harness:
             "definition": "capture_end is end of captured source utterance; first_audio is first translated audio rendered at recipient; percentiles computed directly per utterance and are not summed.",
             "lines_read": self.lines_read,
             "samples": len(self.samples),
-            "errors": self.errors,
+            "errors": self.errors + self.compute_errors,
             "groups": summaries,
         }
 
@@ -174,7 +178,7 @@ def main() -> int:
     if args.out:
         args.out.write_text(output + "\n", encoding="utf-8")
     print(output)
-    return 1 if errors else 0
+    return 1 if errors or not harness.samples else 0
 
 
 if __name__ == "__main__":
