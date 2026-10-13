@@ -14,3 +14,5 @@ Local build vòng đầu fail AndroidX do BOM; đã bỏ BOM file Android.
 Kết quả 2026-10-13: AGP 8.13.2 / Gradle 8.14.3, JDK21, SDK36; assembleDebug + lintDebug pass không baseline. SDK package.xml cục bộ có api-level 36x đã sửa thành 36, giữ backup .vt-backup. Chưa cô lập nguyên nhân lint; không khẳng định cảnh báo XML là nguyên nhân. Baseline cũ chỉ giữ local và gitignored. Backend smoke + repo checks pass. Chưa chạy thiết bị.
 
 Clean export bằng git checkout-index vào thư mục TEMP riêng: assembleDebug + lintDebug BUILD SUCCESSFUL (48 tasks executed); backend smoke và repo check pass. CI remote chưa chạy tại thời điểm commit.
+
+CI branch 38372340835 success; CI DEV 38372944397 success. GM kiểm trạng thái remote và review lần cuối: VT-001 Done, chưa có bằng chứng chạy trên điện thoại.

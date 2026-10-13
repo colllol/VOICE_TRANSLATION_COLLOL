@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-10-13
 
-VT-001 đang review; các ticket khác chưa nghiệm thu.
+VT-001 Done; các ticket còn lại chưa nghiệm thu.
 ID VT-001..004,010..013,020..023,030..033 được kế thừa từ vault; bổ sung 005,014,024..026 sau đối chiếu ID.
 
 ## Quyền và ràng buộc
@@ -10,7 +10,7 @@ Chủ đồ án đã yêu cầu chia việc và commit DEV. Ticket là kế ho�
 Wave đầu: VT-001 + VT-003 + VT-005 song song; VT-002 sau bằng chứng 005; VT-004 gate trước phần còn lại.
 
 ## Backlog
-- [VT-001 — Nền tảng monorepo và CI](VT-001.md): In review · Codex · dependencies: none
+- [VT-001 — Nền tảng monorepo và CI](VT-001.md): Done · Codex · dependencies: none
 - [VT-002 — Hợp đồng session và audio transport](VT-002.md): Planned · Claude · dependencies: VT-005
 - [VT-003 — Benchmark và license ASR NMT TTS](VT-003.md): Planned · Claude · dependencies: none
 - [VT-004 — Chốt gate kiến trúc demo](VT-004.md): Planned · Codex · dependencies: VT-002, VT-003, VT-005
