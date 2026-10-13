@@ -12,7 +12,7 @@ Wave đầu: VT-001 + VT-003 + VT-005 song song; VT-002 sau bằng chứng 005; 
 ## Backlog
 - [VT-001 — Nền tảng monorepo và CI](VT-001.md): Done · Codex · dependencies: none
 - [VT-002 — Hợp đồng session và audio transport](VT-002.md): Planned · Claude · dependencies: VT-005
-- [VT-003 — Benchmark và license ASR NMT TTS](VT-003.md): Done — benchmark blocked · Claude · dependencies: none
+- [VT-003 — Benchmark và license ASR NMT TTS](VT-003.md): In progress — benchmark blocked · Claude · dependencies: none
 - [VT-004 — Chốt gate kiến trúc demo](VT-004.md): Planned · Codex · dependencies: VT-002, VT-003, VT-005
 - [VT-005 — Feasibility VoIP hai chiều chỉ A điều khiển](VT-005.md): Planned · Codex · dependencies: none
 - [VT-010 — FastAPI WebSocket session service](VT-010.md): Planned · Claude · dependencies: VT-001, VT-002, VT-004
