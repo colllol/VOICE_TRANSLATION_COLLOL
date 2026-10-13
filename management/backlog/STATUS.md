@@ -7,7 +7,7 @@ ID VT-001..004,010..013,020..023,030..033 được kế thừa từ vault; bổ 
 
 ## Quyền và ràng buộc
 Chủ đồ án đã yêu cầu chia việc và commit DEV. Ticket là kế hoạch được phép lưu; thay đổi sản phẩm/contract chưa chốt phải đưa GM duyệt trước code.
-Wave đầu: VT-001 + VT-003 + VT-005 song song; VT-002 sau bằng chứng 005; VT-004 gate trước phần còn lại.
+Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof; VT-002 sau bằng chứng 005; VT-004 gate trước phần còn lại.
 
 ## Backlog
 - [VT-001 — Nền tảng monorepo và CI](VT-001.md): Done · Codex · dependencies: none
