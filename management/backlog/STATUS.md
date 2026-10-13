@@ -1,4 +1,4 @@
-﻿# STATUS — công việc chung
+# STATUS — công việc chung
 
 Cập nhật: 2026-10-13
 
@@ -36,5 +36,3 @@ Wave đầu: VT-001 + VT-003 + VT-005 song song; VT-002 sau bằng chứng 005; 
 - Operating model, AGENTS/CLAUDE entry points, model routing và prompt template đã tạo.
 - Claude consultation hoàn tất; Codex consultation hoàn tất (exit 0).
 - Chưa có Orca Run: no_active_sender_terminal. Không có worker implementation đang được quản lý bởi bộ board này.
-
-
