@@ -102,6 +102,15 @@ class HarnessTests(unittest.TestCase):
         self.assertIsNotNone(Schema.validate({**good, "warm_state": "maybe"}))
         self.assertIsNotNone(Schema.validate({**good, "direction": "x2y"}))
 
+    def test_compute_errors_appear_in_report(self):
+        harness, errors = run_events(events("s", "u", "b2a", 100, 300)[:-1])
+        self.assertTrue(errors)
+        self.assertTrue(any("incomplete utterance" in error for error in harness.summary()["errors"]))
+
+    def test_unhashable_schema_values_do_not_crash(self):
+        valid = events("s", "u", "a2b", 100, 300)[0]
+        self.assertIsNotNone(Schema.validate({**valid, "direction": ["a2b"]}))
+        self.assertIsNotNone(Schema.validate({**valid, "event": ["capture_end"]}))
     def test_empty_input_has_no_metrics(self):
         harness, errors = run_events([])
         self.assertEqual(errors, [])
