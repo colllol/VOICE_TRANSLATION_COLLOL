@@ -4,26 +4,45 @@ Prototype Android voice-to-voice translation controlled by user A. The first dem
 
 ## Repository layout
 
-- `android/` — Kotlin/Jetpack Compose app boundary (scaffold in VT-001)
-- `backend/` — FastAPI/WebSocket service boundary
-- `protocol/` — versioned transport contracts and fixtures
+- `android/` — Kotlin/Jetpack Compose app boundary and VT-023 setup UI
+- `backend/` — dependency-free health/smoke boundary; session service is not implemented yet
+- `protocol/` — reserved for the VT-002 reviewed transport contract
+- `research/` — audio-route and model benchmark harnesses
 - `tools/` — repository checks
+
+## Current verified app behavior
+
+The Android debug build currently provides:
+
+- A call-app picker populated from launchable apps visible on device A.
+- A button to open the selected app.
+- A/B language selection and swap.
+- Local persistence of the selected app package and language choices using `SharedPreferences`.
+- A fail-closed readiness check that does not capture, send, or translate audio.
+
+The picker does **not** monitor calls in the background and does not inject audio into arbitrary third-party Android calling apps. The first real demo must use a VoIP integration controlled by the project, as required by the architecture notes.
 
 ## Development checks
 
 ```powershell
+python -m backend.smoke
 python tools/check_repo.py
+python -m unittest research.audio_route.test_route -v
+$env:ANDROID_HOME='C:/Users/Admin/AppData/Local/Android/Sdk'
+./android/gradlew.bat -p android :app:assembleDebug :app:lintDebug
 ```
 
-The check flags selected inline secret patterns and verifies required project boundaries. It does not claim that Android build or VoIP routing is implemented.
+These checks do not prove real ASR/NMT/TTS inference, VoIP media injection, or the sub-second latency target.
+
+## Remaining gates
+
+- `VT-005`: controlled VoIP media-hook feasibility and device gates A–E.
+- `VT-002` / `VT-004`: reviewed transport contract and architecture decision after VoIP evidence.
+- `VT-011` / `VT-010` / `VT-012` / `VT-013`: audio lifecycle, session service, providers, and duplex orchestration after the gates.
+- `VT-003`: real model benchmark remains blocked until model revisions, licensed corpus, hardware/runtime, and approved provider inputs are available.
 
 ## Branch and commit policy
 
 Start from `origin/DEV`. Feature branches use `codex/VT-xxx` or `claude/VT-xxx`. Commits use `<area>: <feature> [VT-xxx]`. Only the general coordinator integrates reviewed commits into `DEV`.
 
-## Current status
-
-This repository contains an Android development screen and a dependency-free backend smoke scaffold. Model selection, Android audio routing, controlled VoIP injection, ASR/NMT/TTS providers, and benchmark results remain pending their tickets.
-
-Build Android: xem android/README.md. Backend smoke: python -m backend.smoke.
-Các dịch vụ và model chưa được triển khai; app hiện chỉ là màn hình trạng thái phát triển.
+Build Android: see `android/README.md`. Backend smoke: `python -m backend.smoke`.
