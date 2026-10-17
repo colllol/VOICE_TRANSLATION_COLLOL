@@ -1,5 +1,6 @@
 package com.collol.voicetranslation
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
@@ -37,11 +38,14 @@ class MainActivity : ComponentActivity() {
 private fun SetupScreen(onClose: () -> Unit) {
     val context = LocalContext.current
     val packageManager = context.packageManager
+    val preferences = remember(context) {
+        context.getSharedPreferences("voice_translation_setup", Context.MODE_PRIVATE)
+    }
     val launchableApps = remember(packageManager) { loadLaunchableApps(packageManager) }
     val languages = listOf("Tiếng Việt", "English", "中文", "日本語", "한국어", "Français")
-    var languageA by rememberSaveable { mutableStateOf(languages[0]) }
-    var languageB by rememberSaveable { mutableStateOf(languages[1]) }
-    var selectedAppPackage by rememberSaveable { mutableStateOf<String?>(null) }
+    var languageA by rememberSaveable { mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) }
+    var languageB by rememberSaveable { mutableStateOf(preferences.getString("language_b", languages[1]) ?: languages[1]) }
+    var selectedAppPackage by rememberSaveable { mutableStateOf(preferences.getString("selected_app_package", null)) }
     var checked by rememberSaveable { mutableStateOf(false) }
     val selectedApp = launchableApps.firstOrNull { it.packageName == selectedAppPackage }
     val selectedAppLabel = selectedApp?.label ?: "Chưa chọn ứng dụng"
@@ -61,7 +65,7 @@ private fun SetupScreen(onClose: () -> Unit) {
             AppPicker(
                 value = selectedAppLabel,
                 apps = launchableApps,
-                onSelect = { selectedAppPackage = it.packageName; checked = false },
+                onSelect = { selectedAppPackage = it.packageName; preferences.edit().putString("selected_app_package", it.packageName).apply(); checked = false },
             )
             if (selectedApp != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -80,12 +84,13 @@ private fun SetupScreen(onClose: () -> Unit) {
                 }
             }
 
-            LanguagePicker("Ngôn ngữ của bạn (A)", languageA, languages) { languageA = it; checked = false }
-            LanguagePicker("Ngôn ngữ người nghe (B)", languageB, languages) { languageB = it; checked = false }
+            LanguagePicker("Ngôn ngữ của bạn (A)", languageA, languages) { languageA = it; preferences.edit().putString("language_a", it).apply(); checked = false }
+            LanguagePicker("Ngôn ngữ người nghe (B)", languageB, languages) { languageB = it; preferences.edit().putString("language_b", it).apply(); checked = false }
             OutlinedButton(onClick = {
                 val previous = languageA
                 languageA = languageB
                 languageB = previous
+                preferences.edit().putString("language_a", languageA).putString("language_b", languageB).apply()
                 checked = false
             }, modifier = Modifier.fillMaxWidth()) { Text("Đổi ngôn ngữ hai bên") }
             if (languageA == languageB) {
@@ -103,7 +108,7 @@ private fun SetupScreen(onClose: () -> Unit) {
                 Text("Chưa thể bắt đầu dịch. Cần tích hợp và kiểm chứng audio VoIP hai chiều cùng bộ xử lý dịch trước. Không có phiên dịch nào được khởi chạy.", color = MaterialTheme.colorScheme.error)
             }
             OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Đóng") }
-            Text("Danh sách ứng dụng lấy từ các app có thể mở trên thiết bị. Lựa chọn chỉ có hiệu lực trong phiên hiện tại; chưa lưu lâu dài.", style = MaterialTheme.typography.bodySmall)
+            Text("Danh sách ứng dụng lấy từ các app có thể mở trên thiết bị. Cấu hình được lưu trên thiết bị này.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
