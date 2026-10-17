@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -41,7 +43,15 @@ private fun SetupScreen(onClose: () -> Unit) {
     val preferences = remember(context) {
         context.getSharedPreferences("voice_translation_setup", Context.MODE_PRIVATE)
     }
-    val launchableApps = remember(packageManager) { loadLaunchableApps(packageManager) }
+    var appRefresh by remember { mutableIntStateOf(0) }
+    val launchableApps = remember(packageManager, appRefresh) { loadLaunchableApps(packageManager) }
+    DisposableEffect(context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) appRefresh++
+        }
+        (context as ComponentActivity).lifecycle.addObserver(observer)
+        onDispose { (context as ComponentActivity).lifecycle.removeObserver(observer) }
+    }
     val languages = listOf("Tiếng Việt", "English", "中文", "日本語", "한국어", "Français")
     var languageA by rememberSaveable { mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) }
     var languageB by rememberSaveable { mutableStateOf(preferences.getString("language_b", languages[1]) ?: languages[1]) }
@@ -97,6 +107,7 @@ private fun SetupScreen(onClose: () -> Unit) {
                 Text("Chọn hai ngôn ngữ khác nhau để dịch.", color = MaterialTheme.colorScheme.error)
             }
             HorizontalDivider()
+            Text("Ứng dụng đã chọn: ${selectedApp?.label ?: "chưa chọn"}", style = MaterialTheme.typography.titleSmall)
             Text("Theo dõi cuộc gọi nền: chưa tích hợp", style = MaterialTheme.typography.titleMedium)
             Text("Chọn ứng dụng chỉ lưu mục tiêu cấu hình và mở ứng dụng đó. Android không tự cho phép app này đọc hoặc chèn audio vào mọi ứng dụng gọi điện.")
             Button(
