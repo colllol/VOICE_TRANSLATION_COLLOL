@@ -55,7 +55,7 @@ private fun SetupScreen(onClose: () -> Unit) {
                 Text("Chưa thể bắt đầu dịch. Cần tích hợp và kiểm chứng audio VoIP hai chiều cùng bộ xử lý dịch trước. Không có phiên dịch nào được khởi chạy.", color = MaterialTheme.colorScheme.error)
             }
             OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Đóng") }
-            Text("Danh sách ngôn ngữ là cấu hình dự kiến, chưa xác nhận chất lượng dịch. Lựa chọn được giữ khi xoay màn hình; chưa lưu cấu hình lâu dài.", style = MaterialTheme.typography.bodySmall)
+            Text("Danh sách ngôn ngữ là cấu hình dự kiến, chưa xác nhận chất lượng dịch. Cấu hình chỉ có hiệu lực trong phiên hiện tại; chưa lưu lâu dài.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
