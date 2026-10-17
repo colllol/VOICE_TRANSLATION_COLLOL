@@ -23,7 +23,7 @@ Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof;
 - [VT-020 — AEC NS AGC và chống feedback](VT-020.md): Planned · Codex · dependencies: VT-011, VT-014
 - [VT-021 — VAD và ổn định cụm nói](VT-021.md): Planned · Claude · dependencies: VT-012, VT-013
 - [VT-022 — Adaptive Controller và phép đo](VT-022.md): Planned · Codex · dependencies: VT-020, VT-021
-- [VT-023 — UI app popup chỉ cho A](VT-023.md): Planned · Codex · dependencies: VT-011, VT-013
+- [VT-023 — UI app popup chỉ cho A](VT-023.md): In progress — setup preview only · Codex · dependencies: VT-011, VT-013
 - [VT-024 — Ngữ cảnh và glossary](VT-024.md): Planned · Claude · dependencies: VT-012, VT-021
 - [VT-025 — Voice identity xuyên ngôn ngữ](VT-025.md): Planned · Claude · dependencies: VT-003, VT-012
 - [VT-026 — Training giọng vùng miền](VT-026.md): Planned · Claude · dependencies: VT-003, VT-024, VT-025
