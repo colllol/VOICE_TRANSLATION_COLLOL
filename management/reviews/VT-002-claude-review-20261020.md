@@ -1,9 +1,9 @@
 # VT-002 Independent Review — Claude Reviewer
 
-**Date:** 2026-10-20  
-**Reviewer:** Claude (independent agent, worktree isolation)  
-**Commit:** dbebbee (protocol: implement VT-002 session and audio transport contract)  
-**Scope:** protocol/ — messages, validation, session_manager, fixtures, tests  
+**Date:** 2026-10-20
+**Reviewer:** Claude (independent agent, worktree isolation)
+**Commit:** dbebbee (protocol: implement VT-002 session and audio transport contract)
+**Scope:** protocol/ — messages, validation, session_manager, fixtures, tests
 **Test results:** 21/21 passed, repository check passed
 
 ---
@@ -19,16 +19,16 @@ VT-002 implementation is **semantically correct** for its documented contract. T
 ## Critical Findings
 
 ### C1: Resume does not restore queue state after reconnection
-**Severity:** Critical — data loss on reconnect  
+**Severity:** Critical — data loss on reconnect
 **File:Line:** `protocol/session_manager.py:114-123`
 
-**Issue:**  
+**Issue:**
 `SessionManager.resume()` advances `expected_seq` pointers but **does not clear stale queued chunks**. After reconnect, the client resumes from `last_seq_a2b+1`, but the server queue may still hold chunks `[0..last_seq_a2b]` that the client already processed. When the client sends new chunks starting at `last_seq_a2b+1`, those will queue *after* the stale data, causing:
 - Out-of-order delivery to downstream ASR/NMT pipeline
 - Duplicate translation of already-acknowledged audio
 - Queue bloat until backpressure is hit
 
-**Evidence:**  
+**Evidence:**
 ```python
 def resume(self, msg: ResumeSession) -> None:
     # ...advances seq pointers but does NOT call self.queues[...].clear()
@@ -38,7 +38,7 @@ def resume(self, msg: ResumeSession) -> None:
 
 No test covers queue state after resume. `test_resume_advances_sequence` (line 117) only checks `expected_seq`.
 
-**WebSocket impact:**  
+**WebSocket impact:**
 When a WebSocket reconnects and sends `ResumeSession`, the FastAPI handler will call `resume()` but leave stale chunks in memory. The next `process_chunk()` will enqueue *after* them, breaking FIFO order.
 
 **Recommended fix:**
@@ -46,13 +46,13 @@ When a WebSocket reconnects and sends `ResumeSession`, the FastAPI handler will 
 def resume(self, msg: ResumeSession) -> None:
     if self.state not in (SessionState.ACTIVE, SessionState.IDLE):
         raise RuntimeError(f"cannot resume from {self.state} state")
-    
+
     self.state = SessionState.ACTIVE
-    
+
     # Clear stale queued chunks before resuming
     for direction in (Direction.A_TO_B.value, Direction.B_TO_A.value):
         self.queues[direction].clear()
-    
+
     self.seq_state[Direction.A_TO_B.value].expected_seq = msg.last_seq_a2b + 1
     self.seq_state[Direction.B_TO_A.value].expected_seq = msg.last_seq_b2a + 1
 ```
@@ -64,7 +64,7 @@ def test_resume_clears_stale_queue():
     mgr.start()
     mgr.process_chunk(valid_audio_chunk(seq=0, direction=Direction.A_TO_B))
     assert mgr.get_queue_depth(Direction.A_TO_B) == 1
-    
+
     mgr.resume(ResumeSession("sess-001", 2000.0, last_seq_a2b=0, last_seq_b2a=-1))
     assert mgr.get_queue_depth(Direction.A_TO_B) == 0  # stale chunk removed
 ```
@@ -72,16 +72,16 @@ def test_resume_clears_stale_queue():
 ---
 
 ### C2: No session identity verification for incoming messages
-**Severity:** Critical — session hijacking, cross-session pollution  
+**Severity:** Critical — session hijacking, cross-session pollution
 **File:Line:** `protocol/session_manager.py:79-105`
 
-**Issue:**  
+**Issue:**
 `SessionManager` holds a `session_id` field but **never checks** that incoming `AudioChunk`, `CancelSession`, or `ResumeSession` messages match it. A client could:
 - Send chunks for session A to the manager for session B
 - Cancel unrelated sessions
 - Resume with wrong session_id and corrupt sequence state
 
-**Evidence:**  
+**Evidence:**
 ```python
 def process_chunk(self, chunk: AudioChunk) -> None:
     # No check: if chunk.session_id != self.session_id: raise ...
@@ -90,10 +90,10 @@ def process_chunk(self, chunk: AudioChunk) -> None:
 
 `cancel()` and `resume()` also omit session_id validation.
 
-**WebSocket impact:**  
+**WebSocket impact:**
 FastAPI handlers will route by session_id, but if routing logic has a bug (e.g., wrong dict key), the manager will silently accept mismatched chunks. This violates the "session identity" requirement implied by the contract.
 
-**Recommended fix:**  
+**Recommended fix:**
 Add validation at the start of each method:
 ```python
 def process_chunk(self, chunk: AudioChunk) -> None:
@@ -119,10 +119,10 @@ def test_process_chunk_wrong_session_rejected():
 ---
 
 ### C3: Cancel and resume do not accept message objects for timestamp/audit
-**Severity:** Critical — no audit trail, violates contract symmetry  
+**Severity:** Critical — no audit trail, violates contract symmetry
 **File:Line:** `protocol/session_manager.py:107-123`
 
-**Issue:**  
+**Issue:**
 `cancel()` and `resume(msg: ResumeSession)` methods do not mirror the contract messages `CancelSession` and `ResumeSession` fully. Specifically:
 - `cancel()` takes no parameters, so the **timestamp** from `CancelSession` is lost.
 - Neither method returns an acknowledgment or error message to send back to the client.
@@ -140,7 +140,7 @@ async def handle_cancel(msg: CancelSession):
 
 Without the message parameter, handlers must extract fields manually, losing type safety.
 
-**Evidence:**  
+**Evidence:**
 ```python
 def cancel(self) -> None:  # no CancelSession parameter
     # ... clears state but cannot log timestamp or validate session_id
@@ -165,10 +165,10 @@ Update `test_cancel_clears_state` to pass `valid_cancel_session()`.
 ## Moderate Findings
 
 ### M1: README claims "user A control" but protocol has no A/B role enforcement
-**Severity:** Moderate — documentation/implementation mismatch  
+**Severity:** Moderate — documentation/implementation mismatch
 **File:Line:** `README.md:3`, `AGENTS.md:7`
 
-**Issue:**  
+**Issue:**
 README states "controlled by user A" and AGENTS.md specifies "chỉ A điều khiển" (only A controls). However, the protocol treats both `Direction.A_TO_B` and `Direction.B_TO_A` symmetrically with no enforcement of who can start sessions, send chunks, or cancel.
 
 This is not a *protocol* bug (bidirectional equality is correct for audio transport), but a **contract ambiguity**. If "A controls" means:
@@ -177,10 +177,10 @@ This is not a *protocol* bug (bidirectional equality is correct for audio transp
 
 ...then the protocol layer is correct, but **backend FastAPI handlers** must enforce that constraint (e.g., by device authentication, allowed origins, or session ownership). The protocol itself is agnostic.
 
-**Risk:**  
+**Risk:**
 Future developers may assume the protocol enforces A/B roles and skip implementing WebSocket-layer authorization, allowing B's device to start/cancel sessions.
 
-**Recommended fix:**  
+**Recommended fix:**
 Add a note to `protocol/__init__.py` docstring:
 ```python
 """
@@ -274,7 +274,7 @@ This is a **nice-to-have** for completeness, not a bug.
 
 ## Validation Completeness Audit
 
-**Claim (README:13-18):**  
+**Claim (README:13-18):**
 > "protocol/ — versioned transport contracts and fixtures"
 
 **Validated:**
@@ -343,7 +343,7 @@ This is a **nice-to-have** for completeness, not a bug.
 
 ## Repository Check Verification
 
-**Command:** `python tools/check_repo.py`  
+**Command:** `python tools/check_repo.py`
 **Result:** ✅ Passed (5 required paths, no secret patterns detected)
 
 **Verified:**

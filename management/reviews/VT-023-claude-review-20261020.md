@@ -1,15 +1,15 @@
 # VT-023 — Independent Code Review | Claude Reviewer
-**Date:** 2026-10-20  
-**Reviewer:** Claude (independent, not owner)  
-**Branch:** `codex/VT-023-preview` at commit `1242365`  
-**Scope:** Setup preview UI, app picker, language selection, persistence, lifecycle, and acceptance criteria  
+**Date:** 2026-10-20
+**Reviewer:** Claude (independent, not owner)
+**Branch:** `codex/VT-023-preview` at commit `1242365`
+**Scope:** Setup preview UI, app picker, language selection, persistence, lifecycle, and acceptance criteria
 **Constraint Set:** AGENTS.md § "chỉ A điều khiển", no arbitrary third-party call interception, fail-closed readiness, no audio capture/translation UX
 
 ---
 
 ## Summary
 
-VT-023 implements a **setup-only preview** that satisfies the stated scope: app picker, language swap, persistence via SharedPreferences, and a fail-closed readiness check. The implementation is **correct and minimal** — it makes no audio claims and does not bypass constraints. 
+VT-023 implements a **setup-only preview** that satisfies the stated scope: app picker, language swap, persistence via SharedPreferences, and a fail-closed readiness check. The implementation is **correct and minimal** — it makes no audio claims and does not bypass constraints.
 
 However, **three issues block acceptance** without remediation:
 
@@ -65,8 +65,8 @@ DisposableEffect(context) {
 val preferences = remember(context) {
     context.getSharedPreferences("voice_translation_setup", Context.MODE_PRIVATE)
 }
-var languageA by rememberSaveable { 
-    mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) 
+var languageA by rememberSaveable {
+    mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0])
 }
 ```
 
@@ -145,17 +145,17 @@ val preferences = remember(context) {
 
 **Evidence:**
 ```kotlin
-onSelect = { selectedAppPackage = it.packageName; 
-    preferences.edit().putString("selected_app_package", it.packageName).apply(); 
-    checked = false 
+onSelect = { selectedAppPackage = it.packageName;
+    preferences.edit().putString("selected_app_package", it.packageName).apply();
+    checked = false
 },
 ```
 
 **Observation:**
 `it.packageName` is never null (it comes from `PackageManager.queryIntentActivities`, which filters by package name). However, the initialization path reads:
 ```kotlin
-var selectedAppPackage by rememberSaveable { 
-    mutableStateOf(preferences.getString("selected_app_package", null)) 
+var selectedAppPackage by rememberSaveable {
+    mutableStateOf(preferences.getString("selected_app_package", null))
 }
 ```
 
@@ -167,8 +167,8 @@ If SharedPreferences somehow returns a corrupted or empty string, `selectedAppPa
 ```kotlin
 val storedPkg = preferences.getString("selected_app_package", null)
 val isValid = launchableApps.any { it.packageName == storedPkg }
-var selectedAppPackage by rememberSaveable { 
-    mutableStateOf(if (isValid) storedPkg else null) 
+var selectedAppPackage by rememberSaveable {
+    mutableStateOf(if (isValid) storedPkg else null)
 }
 ```
 
@@ -269,16 +269,16 @@ if (apps.isEmpty()) {
 
 ## Constraint Violations Check
 
-**AGENTS.md § "chỉ A điều khiển":** ✅ NO VIOLATION  
+**AGENTS.md § "chỉ A điều khiển":** ✅ NO VIOLATION
 → Picker, language, and readiness are A-only. No B socket, no peer data, no B permission.
 
-**"B tham gia cuộc gọi thông thường, không cần cài công cụ dịch":** ✅ NO VIOLATION  
+**"B tham gia cuộc gọi thông thường, không cần cài công cụ dịch":** ✅ NO VIOLATION
 → B is not part of the preview. VoIP integration is VT-005.
 
-**"Không tự giảm yêu cầu":** ✅ NO VIOLATION  
+**"Không tự giảm yêu cầu":** ✅ NO VIOLATION
 → Code does not claim audio works; message is fail-closed. No benchmark skipped. VT-005, VT-004, VT-011 remain gates.
 
-**"Android không thể chặn/chèn audio của app thứ ba":** ✅ NO VIOLATION  
+**"Android không thể chặn/chèn audio của app thứ ba":** ✅ NO VIOLATION
 → Picker is informational only (line 112). No AudioTrack, no AudioRecord, no injection attempted.
 
 ---

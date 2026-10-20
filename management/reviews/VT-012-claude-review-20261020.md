@@ -41,7 +41,7 @@ def synthesize(self, text: str, target_lang: str) -> bytes:
 
 **Impact**: Caller không thể decode audio. Android AudioTrack cần format chính xác để phát.
 
-**Fix required**: 
+**Fix required**:
 1. Thay docstring thành "Synthesize text to audio bytes. Format defined by implementation."
 2. Hoặc thêm `AudioFormat` dataclass với `sample_rate`, `channels`, `bit_depth` và return `tuple[bytes, AudioFormat]`
 3. Update fake provider để mock format metadata hoặc loại bỏ misleading "PCM" claim
@@ -63,7 +63,7 @@ def supports_streaming(self) -> bool:
     return self.config.supports_streaming
 ```
 
-**Issue**: 
+**Issue**:
 - `supports_streaming` flag tồn tại nhưng không có streaming method
 - `synthesize()` trả về `bytes` hoàn chỉnh, không phải iterator/async generator/callback
 - Fake providers set `supports_streaming=True` nhưng không stream
@@ -84,7 +84,7 @@ def supports_streaming(self) -> bool:
 
 **File**: `backend/providers/fake.py:11-19`, `backend/providers/test_providers.py:161-180`
 
-**Issue**: 
+**Issue**:
 - FakeASRProvider return deterministic text based on audio length: `f"test utterance {count}"`
 - Test `test_transcribe_deterministic` chỉ verify same input → same output
 - Không test error conditions real ASR có: malformed audio, unsupported codec, language mismatch
@@ -110,7 +110,7 @@ def supports_streaming(self) -> bool:
 - `RealTTSProvider.__init__` fail early nếu missing `TTS_API_KEY` — inconsistent
 - Test `test_real_tts_without_api_key_raises` manipulates `os.environ` nhưng không restore (có thể affect other tests nếu run parallel)
 
-**Impact**: 
+**Impact**:
 - Provider instance có thể được tạo nhưng fail sau đó
 - Không consistent về khi nào fail
 - Test có potential side effect
@@ -144,7 +144,7 @@ def validate(self) -> None:
 
 **Impact**: Metadata không reliable cho compliance audit. VT-003 cần accurate license info.
 
-**Recommendation**: 
+**Recommendation**:
 1. Thêm `LicenseType` enum: MIT, Apache2, CC_BY_NC_4_0, Proprietary, Unknown
 2. Thêm `CorpusType` enum hoặc freeform với validation pattern
 3. Hoặc document rõ "metadata fields are informational only, not validated"
@@ -155,7 +155,7 @@ def validate(self) -> None:
 
 **File**: Không có test verify text không leak ra UI
 
-**Issue**: 
+**Issue**:
 - ASR text và NMT text là internal
 - AGENTS.md line 7: "Text ASR/NMT chỉ dùng nội bộ"
 - Không có test verify text không được expose qua protocol hoặc Android UI
@@ -185,7 +185,7 @@ if not api_key:
 
 **Positive**: Secret được read từ environment variable, không hardcode.
 
-**Issue**: 
+**Issue**:
 - Không có documentation về where to set `TTS_API_KEY`
 - README hoặc setup guide không mention environment variables
 - Không có `.env.example` file
@@ -246,7 +246,7 @@ from backend.providers.fake import create_fake_providers
 
 **Impact**: Developer không thể run smoke test easily. CI có thể pass nhưng local dev bị block.
 
-**Fix required**: 
+**Fix required**:
 1. Thêm `backend/pytest.ini` hoặc `backend/conftest.py` với `sys.path` setup
 2. Hoặc document: "Run smoke tests from repo root: `python -m pytest backend/test_providers_smoke.py`"
 3. Update smoke test file docstring với proper invocation
@@ -255,7 +255,7 @@ from backend.providers.fake import create_fake_providers
 
 ## Test quality assessment
 
-**Unit tests (`backend/providers/test_providers.py`)**: 
+**Unit tests (`backend/providers/test_providers.py`)**:
 - ✅ 35 tests, comprehensive config validation
 - ✅ Fake provider determinism verified
 - ✅ Real provider fail-closed verified
@@ -306,9 +306,9 @@ from backend.providers.fake import create_fake_providers
 
 ## Acceptance criteria verification
 
-✅ **Fake providers kiểm contract**: Pass, deterministic, error propagation tested  
-⚠️  **Real-provider smoke**: Tests exist nhưng blocked on missing dependencies (expected)  
-✅ **Secrets ngoài APK**: Environment variables, không hardcode  
+✅ **Fake providers kiểm contract**: Pass, deterministic, error propagation tested
+⚠️  **Real-provider smoke**: Tests exist nhưng blocked on missing dependencies (expected)
+✅ **Secrets ngoài APK**: Environment variables, không hardcode
 ⚠️  **Internal text không lộ UI**: Không có integration test verify, nhưng provider code không expose text ra protocol
 
 **Overall**: 3/4 acceptance pass, 1 cần integration test.
@@ -331,10 +331,10 @@ from backend.providers.fake import create_fake_providers
 
 ## Sign-off
 
-Reviewer: Claude independent  
-Date: 2026-10-20  
-Model: Opus 4 (claude-opus-4.8-thinking)  
-Session: worktree claude-vt012-review  
+Reviewer: Claude independent
+Date: 2026-10-20
+Model requested: opus; effective canonical model unknown (CLI metadata not verified)
+Session: worktree claude-vt012-review
 
 Không sửa production source theo instructions. Review complete.
 
