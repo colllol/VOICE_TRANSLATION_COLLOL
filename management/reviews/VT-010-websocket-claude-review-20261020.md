@@ -1,8 +1,8 @@
 # VT-010 WebSocket Transport — Final Review
-**Date**: 2026-10-20  
-**Reviewer**: Claude (independent final review, worktree `claude/VT-010-ws-review`)  
-**Commits Reviewed**: b347d2f, f22bf0f (coordinator integration), plus full `backend/app.py` and `backend/session/`  
-**Test Evidence**: 150 tests passed (30 backend/session, 26 backend/test_app, 30 protocol, 64 others)  
+**Date**: 2026-10-20
+**Reviewer**: Claude (independent final review, worktree `claude/VT-010-ws-review`)
+**Commits Reviewed**: coordinator branch through `abadb22`, including VT-010 commits `b347d2f`, `f22bf0f`, `f939c0d`, `9ecf2c6`, `884de65`, `cd3a0e0`
+**Test Evidence**: 150 tests passed (30 backend/session, 26 backend/test_app, 30 protocol, 64 others)
 **Scope**: Security, correctness, protocol contract adherence, session lifecycle, error handling, API boundaries
 
 ---
@@ -46,7 +46,7 @@
 ## MEDIUM Findings
 
 ### M-1: Error code mapping relies on string matching (backend/session/service.py:119-124)
-**Location**: `backend/session/service.py:119-124`  
+**Location**: `backend/session/service.py:119-124`
 **Evidence**:
 ```python
 # ponytail: stable error string mapping until SessionManager uses typed exceptions
@@ -66,7 +66,7 @@ else:
 
 **Impact**: Future protocol extensions (e.g., new sequence error types) require remembering to update both `SessionManager` and this string-match block. Failure leads to misclassified errors sent to clients.
 
-**Recommendation**: 
+**Recommendation**:
 1. Introduce typed exceptions in `protocol/session_manager.py`: `StaleSequenceError(ValueError)`, `DuplicateSequenceError(ValueError)`
 2. Update `SessionManager.process_chunk()` to raise typed exceptions
 3. Update `SessionService.process_audio_chunk()` to catch specific exception types
@@ -78,12 +78,12 @@ else:
 ---
 
 ### M-2: Session timeout enforcement not runtime-scheduled (backend/session/service.py:228)
-**Location**: `backend/session/service.py:228-236`  
+**Location**: `backend/session/service.py:228-236`
 **Evidence**: `expire_inactive(now_ms, timeout_ms)` is a synchronous method, not a background scheduler.
 
 **Issue**: The checkpoint noted "timeout chưa phải scheduler runtime" (timeout not yet runtime scheduler). Current implementation requires manual periodic calls to `expire_inactive()`. No background task/daemon is configured in `backend/app.py` or CI to invoke this automatically.
 
-**Impact**: 
+**Impact**:
 - Retained terminal sessions accumulate indefinitely in production unless ops manually triggers cleanup
 - `max_retained=100` bounds memory but doesn't enforce time-based expiration automatically
 - Observability/debugging window depends on external cronjob or operator discipline
@@ -99,8 +99,8 @@ else:
 ---
 
 ### M-3: No CI workflow for backend contract coverage (VT-034 in backlog)
-**Location**: `.github/workflows/` (only `repository-check.yml` exists)  
-**Evidence**: 
+**Location**: `.github/workflows/` (only `repository-check.yml` exists)
+**Evidence**:
 - Recent commits mention VT-034: `abadb22 ci: install pytest for backend contract checks [VT-034]`, `1fa2497 ci: cover backend transport contract [VT-034]`
 - Running `python -m pytest` locally passes 150 tests
 - No GitHub Actions workflow found to enforce this on PR/push
@@ -135,7 +135,7 @@ else:
 ## LOW Findings
 
 ### L-1: FastAPI/Starlette deprecation warnings in test output
-**Location**: Test run output (26 warnings from `fastapi/routing.py:234`)  
+**Location**: Test run output (26 warnings from `fastapi/routing.py:234`)
 **Evidence**:
 ```
 DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16
@@ -145,7 +145,7 @@ DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for r
 
 **Impact**: No immediate correctness issue. Tests pass. Will break when Python 3.16 is adopted (2+ years out).
 
-**Recommendation**: 
+**Recommendation**:
 - Monitor FastAPI release notes; upgrade to `fastapi>=0.110.0` once fix is available upstream
 - No action required for VT-010 scope (not our code)
 
@@ -304,6 +304,6 @@ Before first production deploy:
 - Commits reviewed: `b347d2f`, `f22bf0f` (coordinator follow-up)
 - Files read: `backend/app.py`, `backend/session/service.py`, `protocol/session_manager.py`, `protocol/validation.py`, `backend/test_app.py`, `backend/session/test_service.py` (30+26=56 test functions spot-checked)
 
-**Reviewer**: Claude Opus 4.8  
-**Review Duration**: ~45 minutes (code read + test execution + report)  
+**Reviewer model requested**: `opus`; effective canonical model unknown (CLI metadata not verified)
+**Review execution**: isolated Claude CLI worktree; exact duration not used as evidence
 **No source modifications made** (per instructions)
