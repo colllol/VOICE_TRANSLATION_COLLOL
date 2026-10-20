@@ -43,7 +43,7 @@ private fun SetupScreen(onClose: () -> Unit) {
     val preferences = remember(context) {
         context.getSharedPreferences("voice_translation_setup", Context.MODE_PRIVATE)
     }
-    var appRefresh by remember { mutableIntStateOf(0) }
+    var appRefresh by rememberSaveable { mutableIntStateOf(0) }
     val launchableApps = remember(packageManager, appRefresh) { loadLaunchableApps(packageManager) }
     DisposableEffect(context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -53,10 +53,10 @@ private fun SetupScreen(onClose: () -> Unit) {
         onDispose { (context as ComponentActivity).lifecycle.removeObserver(observer) }
     }
     val languages = listOf("Tiếng Việt", "English", "中文", "日本語", "한국어", "Français")
-    var languageA by rememberSaveable { mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) }
-    var languageB by rememberSaveable { mutableStateOf(preferences.getString("language_b", languages[1]) ?: languages[1]) }
-    var selectedAppPackage by rememberSaveable { mutableStateOf(preferences.getString("selected_app_package", null)) }
-    var checked by rememberSaveable { mutableStateOf(false) }
+    var languageA by remember { mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) }
+    var languageB by remember { mutableStateOf(preferences.getString("language_b", languages[1]) ?: languages[1]) }
+    var selectedAppPackage by remember { mutableStateOf(preferences.getString("selected_app_package", null)) }
+    var checked by remember { mutableStateOf(false) }
     val selectedApp = launchableApps.firstOrNull { it.packageName == selectedAppPackage }
     val selectedAppLabel = selectedApp?.label ?: "Chưa chọn ứng dụng"
 
@@ -114,7 +114,7 @@ private fun SetupScreen(onClose: () -> Unit) {
                 onClick = { checked = true },
                 enabled = selectedApp != null && languageA != languageB,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Kiểm tra khả năng bắt đầu") }
+            ) { Text("Kiểm tra thiết lập cục bộ") }
             if (checked) {
                 Text("Chưa thể bắt đầu dịch. Cần tích hợp và kiểm chứng audio VoIP hai chiều cùng bộ xử lý dịch trước. Không có phiên dịch nào được khởi chạy.", color = MaterialTheme.colorScheme.error)
             }
