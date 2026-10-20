@@ -11,13 +11,13 @@ Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof;
 
 ## Backlog
 - [VT-001 — Nền tảng monorepo và CI](VT-001.md): Done · Codex · dependencies: none
-- [VT-002 — Hợp đồng session và audio transport](VT-002.md): Planned · Claude · dependencies: VT-005
+- [VT-002 ? H?p ??ng session v? audio transport](VT-002.md): In progress ? contract reviewed, runtime gate open ? Claude ? dependencies: VT-005
 - [VT-003 — Benchmark và license ASR NMT TTS](VT-003.md): In progress — benchmark blocked · Claude · dependencies: none
 - [VT-004 — Chốt gate kiến trúc demo](VT-004.md): Planned · Codex · dependencies: VT-002, VT-003, VT-005
 - [VT-005 — Feasibility VoIP hai chiều chỉ A điều khiển](VT-005.md): In progress — device proof blocked · Codex · dependencies: none
-- [VT-010 — FastAPI WebSocket session service](VT-010.md): Planned · Claude · dependencies: VT-001, VT-002, VT-004
+- [VT-010 ? FastAPI WebSocket session service](VT-010.md): In progress ? core service only, transport gate open ? Claude ? dependencies: VT-001, VT-002, VT-004
 - [VT-011 — Android capture và lifecycle](VT-011.md): Planned · Codex · dependencies: VT-001, VT-004
-- [VT-012 — ASR NMT TTS adapters](VT-012.md): Planned · Claude · dependencies: VT-003, VT-010
+- [VT-012 ? ASR NMT TTS adapters](VT-012.md): In progress ? fake boundary reviewed, real provider gate open ? Claude ? dependencies: VT-003, VT-010
 - [VT-013 — Điều phối dịch hai hướng](VT-013.md): Planned · Claude · dependencies: VT-010, VT-011, VT-012
 - [VT-014 — Tích hợp outbound và inbound VoIP tại A](VT-014.md): Planned · Codex · dependencies: VT-005, VT-011, VT-013
 - [VT-020 — AEC NS AGC và chống feedback](VT-020.md): Planned · Codex · dependencies: VT-011, VT-014
