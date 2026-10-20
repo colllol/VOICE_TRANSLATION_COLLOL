@@ -15,7 +15,7 @@ Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof;
 - [VT-003 — Benchmark và license ASR NMT TTS](VT-003.md): In progress — benchmark blocked · Claude · dependencies: none
 - [VT-004 — Chốt gate kiến trúc demo](VT-004.md): Planned · Codex · dependencies: VT-002, VT-003, VT-005
 - [VT-005 — Feasibility VoIP hai chiều chỉ A điều khiển](VT-005.md): In progress — device proof blocked · Codex · dependencies: none
-- [VT-010 ? FastAPI WebSocket session service](VT-010.md): In progress ? core service only, transport gate open ? Claude ? dependencies: VT-001, VT-002, VT-004
+- [VT-010 ? FastAPI WebSocket session service](VT-010.md): In progress ? transport reviewed, production runtime gate open ? Claude ? dependencies: VT-001, VT-002, VT-004
 - [VT-011 — Android capture và lifecycle](VT-011.md): Planned · Codex · dependencies: VT-001, VT-004
 - [VT-012 ? ASR NMT TTS adapters](VT-012.md): In progress ? fake boundary reviewed, real provider gate open ? Claude ? dependencies: VT-003, VT-010
 - [VT-013 — Điều phối dịch hai hướng](VT-013.md): Planned · Claude · dependencies: VT-010, VT-011, VT-012
@@ -36,4 +36,4 @@ Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof;
 - Operating model, AGENTS/CLAUDE entry points, model routing và prompt template đã tạo.
 - Claude consultation hoàn tất; Codex consultation hoàn tất (exit 0).
 - Chưa có Orca Run: no_active_sender_terminal. Không có worker implementation đang được quản lý bởi bộ board này.
-- [VT-034 — Mở rộng CI cho backend transport và contract](VT-034.md): Planned · Claude · dependencies: VT-002, VT-010, VT-012
+- [VT-034 ? M? r?ng CI cho backend transport v? contract](VT-034.md): Reviewed ? integrated, remote CI pending ? Claude ? dependencies: VT-002, VT-010, VT-012
