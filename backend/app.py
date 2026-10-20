@@ -74,12 +74,7 @@ def create_app() -> FastAPI:
         finally:
             # Cancel only sessions started by this WebSocket
             for session_id in list(owned_sessions):
-                mgr = service._sessions.get(session_id)
-                if mgr:
-                    cancel_msg = CancelSession(session_id=session_id, timestamp_ms=time.time() * 1000)
-                    mgr.cancel(cancel_msg)
-                    service._retain_session(mgr, "disconnect")
-                    del service._sessions[session_id]
+                service.disconnect_session(session_id, time.time() * 1000)
 
     return app
 

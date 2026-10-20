@@ -242,6 +242,30 @@ class SessionService:
         """List all retained session IDs."""
         return list(self._retained.keys())
 
+    def disconnect_session(self, session_id: str, timestamp_ms: float) -> ErrorMessage | None:
+        """Clean up a session on disconnect: cancel active sessions, retain with 'disconnect' reason.
+
+        Returns ErrorMessage if validation fails, None on success (idempotent for unknown/ended sessions).
+        Only cancels and removes from active registry; never affects another session unless explicitly called with its ID.
+        """
+        if not session_id:
+            return ErrorMessage(
+                session_id=session_id,
+                timestamp_ms=timestamp_ms,
+                code=ErrorCode.INVALID_MESSAGE,
+                detail="session_id cannot be empty",
+            )
+
+        mgr = self._sessions.get(session_id)
+        if not mgr:
+            # Idempotent: unknown or already-ended session
+            return None
+
+        mgr.cancel(CancelSession(session_id=session_id, timestamp_ms=timestamp_ms))
+        self._retain_session(mgr, "disconnect")
+        del self._sessions[session_id]
+        return None
+
     def get_session(self, session_id: str) -> SessionManager:
         """Get session by ID; raises SessionNotFoundError if not found."""
         mgr = self._sessions.get(session_id)

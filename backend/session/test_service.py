@@ -395,3 +395,73 @@ def test_expire_inactive_keeps_recent_sessions():
     assert len(expired) == 0
     assert len(svc.list_retained()) == 1
     assert svc.get_retained_session(start_msg.session_id) is not None
+
+
+def test_disconnect_session_cancels_active():
+    """disconnect_session removes active session and retains with 'disconnect' reason."""
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    err = svc.disconnect_session(start_msg.session_id, 2000.0)
+
+    assert err is None
+    assert svc.session_count() == 0
+    assert start_msg.session_id in svc.list_retained()
+    retained = svc.get_retained_session(start_msg.session_id)
+    assert retained is not None
+    assert retained.reason == "disconnect"
+
+
+def test_disconnect_session_idempotent_for_unknown():
+    """disconnect_session is idempotent for unknown/already-ended sessions."""
+    svc = SessionService()
+
+    err = svc.disconnect_session("unknown-session", 1000.0)
+
+    assert err is None
+
+
+def test_disconnect_session_idempotent_for_already_ended():
+    """disconnect_session is idempotent when called on already-ended session."""
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    # End session normally
+    end_msg = valid_session_end(session_id=start_msg.session_id)
+    svc.end_session(end_msg)
+
+    # Disconnect should be idempotent
+    err = svc.disconnect_session(start_msg.session_id, 3000.0)
+
+    assert err is None
+    assert svc.session_count() == 0
+
+
+def test_disconnect_session_validates_session_id():
+    """disconnect_session returns ErrorMessage for invalid session_id."""
+    svc = SessionService()
+
+    err = svc.disconnect_session("", 1000.0)
+
+    assert err is not None
+    assert err.code == ErrorCode.INVALID_MESSAGE
+    assert "session_id cannot be empty" in err.detail
+
+
+def test_disconnect_session_does_not_affect_other_sessions():
+    """disconnect_session only cancels the specified session, not others."""
+    svc = SessionService()
+    start1 = valid_session_start(session_id="sess-001")
+    start2 = valid_session_start(session_id="sess-002")
+    svc.start_session(start1)
+    svc.start_session(start2)
+
+    err = svc.disconnect_session("sess-001", 2000.0)
+
+    assert err is None
+    assert svc.session_count() == 1
+    assert "sess-002" in svc.list_sessions()
+    assert "sess-001" not in svc.list_sessions()
+    assert "sess-001" in svc.list_retained()
