@@ -14,6 +14,7 @@ from protocol.messages import (
     SessionStart,
     SessionState,
 )
+from protocol.validation import MessageValidator, ValidationError
 
 
 class BackpressureError(RuntimeError):
@@ -78,6 +79,8 @@ class SessionManager:
 
     def process_chunk(self, chunk: AudioChunk) -> None:
         """Validate sequence order and enqueue. Raises BackpressureError or ValueError."""
+        if chunk.session_id != self.session_id:
+            raise ValueError(f"session_id mismatch: expected {self.session_id}, got {chunk.session_id}")
         if self.state != SessionState.ACTIVE:
             raise RuntimeError(f"session in {self.state} state, cannot accept chunks")
 
@@ -92,6 +95,9 @@ class SessionManager:
             seq_st.dropped_count += 1
             raise ValueError(ErrorCode.STALE_SEQUENCE.value)
 
+        # Enqueue with backpressure BEFORE updating sequence counters (atomicity)
+        self.queues[direction_str].put(chunk)
+
         # Gap is allowed (network loss), but track it
         if chunk.seq > seq_st.expected_seq:
             gap = chunk.seq - seq_st.expected_seq
@@ -101,11 +107,13 @@ class SessionManager:
         seq_st.received_seq = chunk.seq
         self.chunks_processed += 1
 
-        # Enqueue with backpressure
-        self.queues[direction_str].put(chunk)
-
-    def cancel(self) -> None:
+    def cancel(self, msg: CancelSession) -> None:
         """Clear queues and reset sequence state."""
+        error = MessageValidator.validate_cancel_session(msg)
+        if error:
+            raise ValidationError(f"invalid CancelSession: {error}")
+        if msg.session_id != self.session_id:
+            raise ValueError(f"session_id mismatch: expected {self.session_id}, got {msg.session_id}")
         for direction in (Direction.A_TO_B.value, Direction.B_TO_A.value):
             self.queues[direction].clear()
             self.seq_state[direction] = SequenceState()
@@ -113,8 +121,17 @@ class SessionManager:
 
     def resume(self, msg: ResumeSession) -> None:
         """Reconnect and skip stale chunks up to acknowledged sequence."""
+        error = MessageValidator.validate_resume_session(msg)
+        if error:
+            raise ValidationError(f"invalid ResumeSession: {error}")
+        if msg.session_id != self.session_id:
+            raise ValueError(f"session_id mismatch: expected {self.session_id}, got {msg.session_id}")
         if self.state not in (SessionState.ACTIVE, SessionState.IDLE):
             raise RuntimeError(f"cannot resume from {self.state} state")
+
+        # Clear queues to drop stale chunks
+        for direction in (Direction.A_TO_B.value, Direction.B_TO_A.value):
+            self.queues[direction].clear()
 
         self.state = SessionState.ACTIVE
 
