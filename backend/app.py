@@ -1,6 +1,7 @@
 """FastAPI WebSocket transport for session service."""
 from __future__ import annotations
 
+import base64
 import json
 import time
 from typing import Any
@@ -24,6 +25,7 @@ from protocol.messages import (
 def create_app() -> FastAPI:
     app = FastAPI(title="Voice Translation Backend")
     service = SessionService()
+    app.state.session_service = service
 
     @app.get("/health")
     def health():
@@ -32,6 +34,7 @@ def create_app() -> FastAPI:
     @app.websocket("/ws/session")
     async def session_websocket(websocket: WebSocket):
         await websocket.accept()
+        owned_sessions: set[str] = set()
         try:
             while True:
                 raw_msg = await websocket.receive_text()
@@ -39,6 +42,10 @@ def create_app() -> FastAPI:
                     envelope = json.loads(raw_msg)
                 except json.JSONDecodeError:
                     await _send_error(websocket, "unknown", "malformed JSON")
+                    continue
+
+                if not isinstance(envelope, dict):
+                    await _send_error(websocket, "unknown", "envelope must be JSON object")
                     continue
 
                 msg_type = envelope.get("type")
@@ -51,20 +58,33 @@ def create_app() -> FastAPI:
                     await _send_error(websocket, "unknown", "missing payload field")
                     continue
 
+                if not isinstance(payload, dict):
+                    await _send_error(websocket, "unknown", "payload must be JSON object")
+                    continue
+
                 handler = _HANDLERS.get(msg_type)
                 if not handler:
                     await _send_error(websocket, "unknown", f"unknown type: {msg_type}")
                     continue
 
-                await handler(websocket, service, payload)
+                await handler(websocket, service, payload, owned_sessions)
 
         except WebSocketDisconnect:
             pass
+        finally:
+            # Cancel only sessions started by this WebSocket
+            for session_id in list(owned_sessions):
+                mgr = service._sessions.get(session_id)
+                if mgr:
+                    cancel_msg = CancelSession(session_id=session_id, timestamp_ms=time.time() * 1000)
+                    mgr.cancel(cancel_msg)
+                    service._retain_session(mgr, "disconnect")
+                    del service._sessions[session_id]
 
     return app
 
 
-async def _handle_session_start(ws: WebSocket, svc: SessionService, payload: dict[str, Any]):
+async def _handle_session_start(ws: WebSocket, svc: SessionService, payload: dict[str, Any], owned_sessions: set[str]):
     try:
         msg = SessionStart(**payload)
     except (TypeError, ValueError) as e:
@@ -75,31 +95,55 @@ async def _handle_session_start(ws: WebSocket, svc: SessionService, payload: dic
     if err:
         await _send_error_message(ws, err)
     else:
+        owned_sessions.add(msg.session_id)
         await ws.send_json({"type": "session_started", "session_id": msg.session_id})
 
 
-async def _handle_audio_chunk(ws: WebSocket, svc: SessionService, payload: dict[str, Any]):
+async def _handle_audio_chunk(ws: WebSocket, svc: SessionService, payload: dict[str, Any], owned_sessions: set[str]):
+    session_id = payload.get("session_id", "unknown")
+
+    # Required base64-encoded payload
+    payload_b64 = payload.get("payload_b64")
+    if not isinstance(payload_b64, str):
+        await _send_error(ws, session_id, "payload_b64 must be a string")
+        return
+
+    try:
+        payload_bytes = base64.b64decode(payload_b64, validate=True)
+    except Exception:
+        await _send_error(ws, session_id, "invalid base64 in payload_b64")
+        return
+
+    # Build AudioChunk message without mutating original payload
     try:
         direction_raw = payload.get("direction")
-        if isinstance(direction_raw, str):
-            payload["direction"] = Direction(direction_raw)
+        direction = Direction(direction_raw) if isinstance(direction_raw, str) else direction_raw
 
-        # ponytail: convert string payload to bytes for JSON transport
-        payload_raw = payload.get("payload")
-        if isinstance(payload_raw, str):
-            payload["payload"] = payload_raw.encode("utf-8")
-
-        msg = AudioChunk(**payload)
+        msg = AudioChunk(
+            session_id=payload.get("session_id"),
+            direction=direction,
+            seq=payload.get("seq"),
+            timestamp_ms=payload.get("timestamp_ms"),
+            payload=payload_bytes,
+            is_final=payload.get("is_final", False)
+        )
     except (TypeError, ValueError) as e:
-        await _send_error(ws, payload.get("session_id", "unknown"), f"AudioChunk parse: {e}")
+        await _send_error(ws, session_id, f"AudioChunk parse: {e}")
         return
 
     err = svc.process_audio_chunk(msg)
     if err:
         await _send_error_message(ws, err)
+    else:
+        await ws.send_json({
+            "type": "audio_chunk_accepted",
+            "session_id": msg.session_id,
+            "direction": msg.direction.value,
+            "seq": msg.seq,
+        })
 
 
-async def _handle_session_end(ws: WebSocket, svc: SessionService, payload: dict[str, Any]):
+async def _handle_session_end(ws: WebSocket, svc: SessionService, payload: dict[str, Any], owned_sessions: set[str]):
     try:
         msg = SessionEnd(**payload)
     except (TypeError, ValueError) as e:
@@ -110,10 +154,11 @@ async def _handle_session_end(ws: WebSocket, svc: SessionService, payload: dict[
     if err:
         await _send_error_message(ws, err)
     else:
+        owned_sessions.discard(msg.session_id)
         await ws.send_json({"type": "session_ended", "session_id": msg.session_id})
 
 
-async def _handle_cancel_session(ws: WebSocket, svc: SessionService, payload: dict[str, Any]):
+async def _handle_cancel_session(ws: WebSocket, svc: SessionService, payload: dict[str, Any], owned_sessions: set[str]):
     try:
         msg = CancelSession(**payload)
     except (TypeError, ValueError) as e:
@@ -124,10 +169,11 @@ async def _handle_cancel_session(ws: WebSocket, svc: SessionService, payload: di
     if err:
         await _send_error_message(ws, err)
     else:
+        owned_sessions.discard(msg.session_id)
         await ws.send_json({"type": "session_cancelled", "session_id": msg.session_id})
 
 
-async def _handle_resume_session(ws: WebSocket, svc: SessionService, payload: dict[str, Any]):
+async def _handle_resume_session(ws: WebSocket, svc: SessionService, payload: dict[str, Any], owned_sessions: set[str]):
     try:
         msg = ResumeSession(**payload)
     except (TypeError, ValueError) as e:
