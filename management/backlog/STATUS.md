@@ -36,4 +36,4 @@ Wave đầu đã chạy VT-001/VT-003/VT-005; VT-005 vẫn blocked device proof;
 - Operating model, AGENTS/CLAUDE entry points, model routing và prompt template đã tạo.
 - Claude consultation hoàn tất; Codex consultation hoàn tất (exit 0).
 - Chưa có Orca Run: no_active_sender_terminal. Không có worker implementation đang được quản lý bởi bộ board này.
-- [VT-034 ? M? r?ng CI cho backend transport v? contract](VT-034.md): Reviewed ? integrated, remote CI pending ? Claude ? dependencies: VT-002, VT-010, VT-012
+- [VT-034 ? M? r?ng CI cho backend transport v? contract](VT-034.md): Done ? Claude ? dependencies: VT-002, VT-010, VT-012
