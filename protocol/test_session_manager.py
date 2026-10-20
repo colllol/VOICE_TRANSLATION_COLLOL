@@ -12,7 +12,7 @@ from protocol.messages import (
     SessionState,
     ResumeSession,
 )
-from protocol.fixtures import valid_audio_chunk, valid_resume_session
+from protocol.fixtures import valid_audio_chunk, valid_cancel_session, valid_resume_session
 
 
 def test_session_start():
@@ -107,7 +107,8 @@ def test_cancel_clears_state():
 
     assert mgr.get_queue_depth(Direction.A_TO_B) == 1
 
-    mgr.cancel()
+    cancel_msg = valid_cancel_session(session_id="sess-001")
+    mgr.cancel(cancel_msg)
 
     assert mgr.state == SessionState.CANCELLED
     assert mgr.get_queue_depth(Direction.A_TO_B) == 0

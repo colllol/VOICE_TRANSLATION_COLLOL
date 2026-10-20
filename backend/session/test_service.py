@@ -306,3 +306,92 @@ def test_multiple_sessions_isolated():
     mgr2 = svc.get_session("sess-002")
     assert mgr1.chunks_processed == 1
     assert mgr2.chunks_processed == 1
+
+
+def test_terminal_session_retention():
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    end_msg = valid_session_end(session_id=start_msg.session_id)
+    svc.end_session(end_msg)
+
+    assert svc.session_count() == 0
+    assert start_msg.session_id in svc.list_retained()
+    retained = svc.get_retained_session(start_msg.session_id)
+    assert retained is not None
+    assert retained.reason == "completed"
+    assert retained.manager.session_id == start_msg.session_id
+
+
+def test_cancelled_session_retention():
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    cancel_msg = valid_cancel_session(session_id=start_msg.session_id)
+    svc.cancel_session(cancel_msg)
+
+    assert svc.session_count() == 0
+    assert start_msg.session_id in svc.list_retained()
+    retained = svc.get_retained_session(start_msg.session_id)
+    assert retained is not None
+    assert retained.reason == "cancelled"
+
+
+def test_retention_bounded_by_max():
+    svc = SessionService(max_retained=2)
+
+    for i in range(3):
+        start_msg = SessionStart(
+            session_id=f"sess-{i:03d}",
+            timestamp_ms=1000.0 + i,
+            source_lang="vi",
+            target_lang="en",
+        )
+        svc.start_session(start_msg)
+        end_msg = valid_session_end(session_id=start_msg.session_id)
+        svc.end_session(end_msg)
+
+    assert len(svc.list_retained()) == 2
+    assert "sess-000" not in svc.list_retained()
+    assert "sess-001" in svc.list_retained()
+    assert "sess-002" in svc.list_retained()
+
+
+def test_expire_inactive_removes_old_sessions():
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    end_msg = valid_session_end(session_id=start_msg.session_id)
+    svc.end_session(end_msg)
+
+    retained = svc.get_retained_session(start_msg.session_id)
+    assert retained is not None
+    ended_at = retained.ended_at_ms
+
+    expired = svc.expire_inactive(ended_at + 5000, 3000)
+
+    assert start_msg.session_id in expired
+    assert len(svc.list_retained()) == 0
+    assert svc.get_retained_session(start_msg.session_id) is None
+
+
+def test_expire_inactive_keeps_recent_sessions():
+    svc = SessionService()
+    start_msg = valid_session_start()
+    svc.start_session(start_msg)
+
+    end_msg = valid_session_end(session_id=start_msg.session_id)
+    svc.end_session(end_msg)
+
+    retained = svc.get_retained_session(start_msg.session_id)
+    assert retained is not None
+    ended_at = retained.ended_at_ms
+
+    expired = svc.expire_inactive(ended_at + 1000, 3000)
+
+    assert len(expired) == 0
+    assert len(svc.list_retained()) == 1
+    assert svc.get_retained_session(start_msg.session_id) is not None
