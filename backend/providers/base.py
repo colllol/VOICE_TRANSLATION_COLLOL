@@ -42,12 +42,12 @@ class TTSProvider(ABC):
 
     @abstractmethod
     def synthesize(self, text: str, target_lang: str) -> bytes:
-        """Synthesize text to audio bytes (PCM format). Returns streaming-capable bytes."""
+        """Synthesize text to audio bytes. Format depends on provider."""
         pass
 
-    def supports_streaming(self) -> bool:
-        """Check if provider supports streaming synthesis."""
-        return self.config.supports_streaming
+    def streaming_declared(self) -> bool:
+        """Metadata: provider declares streaming capability (not necessarily implemented)."""
+        return self.config.streaming_declared
 
 
 class ProviderError(Exception):

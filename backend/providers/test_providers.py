@@ -22,7 +22,7 @@ class TestASRConfig:
             model_revision="tiny",
             license="MIT",
             corpus="openwebtext",
-            supports_streaming=True,
+            streaming_declared=True,
         )
         config.validate()
 
@@ -32,7 +32,7 @@ class TestASRConfig:
             model_revision="v1",
             license="MIT",
             corpus="test",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         with pytest.raises(ValueError, match="name must be non-empty"):
             config.validate()
@@ -43,7 +43,7 @@ class TestASRConfig:
             model_revision="",
             license="MIT",
             corpus="test",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         with pytest.raises(ValueError, match="model_revision must be non-empty"):
             config.validate()
@@ -54,7 +54,7 @@ class TestASRConfig:
             model_revision="v1",
             license="",
             corpus="test",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         with pytest.raises(ValueError, match="license must be non-empty"):
             config.validate()
@@ -65,9 +65,20 @@ class TestASRConfig:
             model_revision="v1",
             license="MIT",
             corpus="",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         with pytest.raises(ValueError, match="corpus must be non-empty"):
+            config.validate()
+
+    def test_whitespace_only_name_raises(self):
+        config = ASRConfig(
+            name="   ",
+            model_revision="v1",
+            license="MIT",
+            corpus="test",
+            streaming_declared=False,
+        )
+        with pytest.raises(ValueError, match="name must be non-empty"):
             config.validate()
 
 
@@ -80,7 +91,7 @@ class TestNMTConfig:
             model_revision="600m",
             license="CC-BY-NC-4.0",
             corpus="parallel",
-            supports_streaming=False,
+            streaming_declared=False,
             max_tokens=512,
         )
         config.validate()
@@ -91,7 +102,7 @@ class TestNMTConfig:
             model_revision="600m",
             license="CC-BY-NC-4.0",
             corpus="parallel",
-            supports_streaming=False,
+            streaming_declared=False,
             max_tokens=0,
         )
         with pytest.raises(ValueError, match="max_tokens must be positive"):
@@ -103,7 +114,7 @@ class TestNMTConfig:
             model_revision="600m",
             license="CC-BY-NC-4.0",
             corpus="parallel",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         assert config.max_tokens == 512
 
@@ -117,7 +128,7 @@ class TestTTSConfig:
             model_revision="3",
             license="proprietary",
             corpus="tts-training",
-            supports_streaming=True,
+            streaming_declared=True,
             voice_id="en-US-Neural2-A",
         )
         config.validate()
@@ -128,7 +139,7 @@ class TestTTSConfig:
             model_revision="3",
             license="proprietary",
             corpus="tts-training",
-            supports_streaming=True,
+            streaming_declared=True,
             voice_id="",
         )
         with pytest.raises(ValueError, match="voice_id must be non-empty"):
@@ -140,7 +151,7 @@ class TestTTSConfig:
             model_revision="3",
             license="proprietary",
             corpus="tts-training",
-            supports_streaming=True,
+            streaming_declared=True,
         )
         assert config.voice_id == "default"
 
@@ -154,7 +165,7 @@ class TestFakeASRProvider:
             model_revision="test",
             license="MIT",
             corpus="synthetic",
-            supports_streaming=True,
+            streaming_declared=True,
         )
         self.provider = FakeASRProvider(config)
 
@@ -176,7 +187,7 @@ class TestFakeASRProvider:
 
     def test_config_accessible(self):
         assert self.provider.config.name == "fake-asr"
-        assert self.provider.config.supports_streaming is True
+        assert self.provider.config.streaming_declared is True
 
 
 class TestFakeNMTProvider:
@@ -188,7 +199,7 @@ class TestFakeNMTProvider:
             model_revision="test",
             license="MIT",
             corpus="synthetic",
-            supports_streaming=False,
+            streaming_declared=False,
         )
         self.provider = FakeNMTProvider(config)
 
@@ -223,15 +234,15 @@ class TestFakeTTSProvider:
             model_revision="test",
             license="MIT",
             corpus="synthetic",
-            supports_streaming=True,
+            streaming_declared=True,
             voice_id="test-voice",
         )
         self.provider = FakeTTSProvider(config)
 
     def test_synthesize_success(self):
         result = self.provider.synthesize("hello", "en")
-        assert result.startswith(b"FAKE_PCM")
-        assert len(result) > len(b"FAKE_PCM")
+        assert result.startswith(b"FAKE_AUDIO_TEST")
+        assert len(result) > len(b"FAKE_AUDIO_TEST")
 
     def test_synthesize_empty_text_raises(self):
         with pytest.raises(ProviderError, match="empty text"):
@@ -248,8 +259,8 @@ class TestFakeTTSProvider:
         result2 = self.provider.synthesize(text2, "en")
         assert len(result1) == len(result2)
 
-    def test_supports_streaming(self):
-        assert self.provider.supports_streaming() is True
+    def test_streaming_declared(self):
+        assert self.provider.streaming_declared() is True
 
 
 class TestFakeProviderFactory:
@@ -275,51 +286,59 @@ class TestFakeProviderFactory:
         synthesized = tts.synthesize(translated, "vi")
         assert synthesized
 
+    def test_intermediate_text_never_in_audio_output(self):
+        """Prove intermediate ASR/NMT text never appears in TTS audio output."""
+        asr, nmt, tts = create_fake_providers()
+
+        audio_in = b"simulated-input-audio" * 50
+        transcribed = asr.transcribe(audio_in)
+        translated = nmt.translate(transcribed, "en", "vi")
+        audio_out = tts.synthesize(translated, "vi")
+
+        # Verify intermediate text never appears in final audio bytes
+        assert transcribed.encode() not in audio_out
+        assert translated.encode() not in audio_out
+        # Verify output is opaque test audio, not text
+        assert audio_out.startswith(b"FAKE_AUDIO_TEST")
+
 
 class TestRealProviderFailsClosedWithoutConfig:
     """Test real providers fail closed when config is missing."""
 
-    def test_real_asr_transcribe_raises(self):
+    def test_real_asr_construction_raises(self):
         config = ASRConfig(
             name="real-asr",
             model_revision="production",
             license="proprietary",
             corpus="real-data",
-            supports_streaming=True,
+            streaming_declared=True,
         )
-        provider = RealASRProvider(config)
 
         with pytest.raises(ConfigError, match="Real ASR provider.*requires model weights"):
-            provider.transcribe(b"audio")
+            RealASRProvider(config)
 
-    def test_real_nmt_translate_raises(self):
+    def test_real_nmt_construction_raises(self):
         config = NMTConfig(
             name="real-nmt",
             model_revision="production",
             license="proprietary",
             corpus="real-data",
-            supports_streaming=False,
+            streaming_declared=False,
         )
-        provider = RealNMTProvider(config)
 
         with pytest.raises(ConfigError, match="Real NMT provider.*requires model weights"):
-            provider.translate("text", "en", "vi")
+            RealNMTProvider(config)
 
-    def test_real_tts_without_api_key_raises(self):
-        import os
-
-        if "TTS_API_KEY" in os.environ:
-            del os.environ["TTS_API_KEY"]
-
+    def test_real_tts_construction_raises(self):
         config = TTSConfig(
             name="real-tts",
             model_revision="production",
             license="proprietary",
             corpus="real-data",
-            supports_streaming=True,
+            streaming_declared=True,
         )
 
-        with pytest.raises(ConfigError, match="Real TTS provider.*requires TTS_API_KEY"):
+        with pytest.raises(ConfigError, match="Real TTS provider.*requires API credentials"):
             RealTTSProvider(config)
 
 

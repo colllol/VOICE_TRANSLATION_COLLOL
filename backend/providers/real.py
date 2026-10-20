@@ -1,7 +1,6 @@
 """Real provider adapters for production use. Require explicit configuration."""
 from __future__ import annotations
 
-import os
 from backend.providers.base import ASRProvider, NMTProvider, TTSProvider, ConfigError
 from backend.providers.config import ASRConfig, NMTConfig, TTSConfig
 
@@ -11,13 +10,14 @@ class RealASRProvider(ASRProvider):
 
     def __init__(self, config: ASRConfig) -> None:
         super().__init__(config)
-        self._model = None
-
-    def transcribe(self, audio_bytes: bytes) -> str:
         raise ConfigError(
-            f"Real ASR provider '{self.config.name}' requires model weights and proper setup. "
+            f"Real ASR provider '{config.name}' requires model weights and proper setup. "
             "Use fake providers for testing or configure real provider credentials."
         )
+
+    def transcribe(self, audio_bytes: bytes) -> str:
+        # Never reached; constructor always raises
+        raise ConfigError("Real ASR provider not configured")
 
 
 class RealNMTProvider(NMTProvider):
@@ -25,13 +25,14 @@ class RealNMTProvider(NMTProvider):
 
     def __init__(self, config: NMTConfig) -> None:
         super().__init__(config)
-        self._model = None
-
-    def translate(self, text: str, source_lang: str, target_lang: str) -> str:
         raise ConfigError(
-            f"Real NMT provider '{self.config.name}' requires model weights and proper setup. "
+            f"Real NMT provider '{config.name}' requires model weights and proper setup. "
             "Use fake providers for testing or configure real provider credentials."
         )
+
+    def translate(self, text: str, source_lang: str, target_lang: str) -> str:
+        # Never reached; constructor always raises
+        raise ConfigError("Real NMT provider not configured")
 
 
 class RealTTSProvider(TTSProvider):
@@ -39,15 +40,11 @@ class RealTTSProvider(TTSProvider):
 
     def __init__(self, config: TTSConfig) -> None:
         super().__init__(config)
-        api_key = os.getenv("TTS_API_KEY")
-        if not api_key:
-            raise ConfigError(
-                f"Real TTS provider '{self.config.name}' requires TTS_API_KEY environment variable. "
-                "Use fake providers for testing or set credentials."
-            )
-
-    def synthesize(self, text: str, target_lang: str) -> bytes:
         raise ConfigError(
-            f"Real TTS provider '{self.config.name}' requires API setup and credentials. "
+            f"Real TTS provider '{config.name}' requires API credentials and proper setup. "
             "Use fake providers for testing or configure real provider credentials."
         )
+
+    def synthesize(self, text: str, target_lang: str) -> bytes:
+        # Never reached; constructor always raises
+        raise ConfigError("Real TTS provider not configured")

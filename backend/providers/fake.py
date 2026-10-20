@@ -37,7 +37,7 @@ class FakeTTSProvider(TTSProvider):
     """Deterministic TTS for testing; synthesizes mock audio with header."""
 
     def synthesize(self, text: str, target_lang: str) -> bytes:
-        """Mock synthesis: return PCM header + text length as samples."""
+        """Mock synthesis: return deterministic test audio payload."""
         if not text:
             raise ProviderError("empty text for synthesis")
         if not target_lang:
@@ -46,7 +46,7 @@ class FakeTTSProvider(TTSProvider):
         text_len = len(text)
         audio_samples = text_len * 100
 
-        header = b"FAKE_PCM"
+        header = b"FAKE_AUDIO_TEST"
         body = bytes([audio_samples & 0xFF, (audio_samples >> 8) & 0xFF]) * 10
 
         return header + body
@@ -59,7 +59,7 @@ def create_fake_providers() -> tuple[FakeASRProvider, FakeNMTProvider, FakeTTSPr
         model_revision="test-v1",
         license="MIT",
         corpus="synthetic",
-        supports_streaming=True,
+        streaming_declared=True,
     )
 
     nmt_config = NMTConfig(
@@ -67,7 +67,7 @@ def create_fake_providers() -> tuple[FakeASRProvider, FakeNMTProvider, FakeTTSPr
         model_revision="test-v1",
         license="MIT",
         corpus="synthetic",
-        supports_streaming=False,
+        streaming_declared=False,
         max_tokens=512,
     )
 
@@ -76,7 +76,7 @@ def create_fake_providers() -> tuple[FakeASRProvider, FakeNMTProvider, FakeTTSPr
         model_revision="test-v1",
         license="MIT",
         corpus="synthetic",
-        supports_streaming=True,
+        streaming_declared=True,
         voice_id="fake-voice-1",
     )
 
