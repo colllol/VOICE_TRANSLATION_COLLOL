@@ -465,3 +465,18 @@ def test_disconnect_session_does_not_affect_other_sessions():
     assert "sess-002" in svc.list_sessions()
     assert "sess-001" not in svc.list_sessions()
     assert "sess-001" in svc.list_retained()
+
+
+def test_disconnect_session_rejects_invalid_timestamp_without_state_change():
+    """Invalid disconnect timestamp must not cancel a live session."""
+    svc = SessionService()
+    start_msg = valid_session_start()
+    assert svc.start_session(start_msg) is None
+
+    err = svc.disconnect_session(start_msg.session_id, -1.0)
+
+    assert err is not None
+    assert err.code == ErrorCode.INVALID_MESSAGE
+    assert "timestamp_ms must be finite and non-negative" in err.detail
+    assert start_msg.session_id in svc.list_sessions()
+    assert svc.get_retained_session(start_msg.session_id) is None

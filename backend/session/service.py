@@ -1,6 +1,7 @@
 """Session service: lifecycle, validation, and isolation for transport."""
 from __future__ import annotations
 
+import math
 import time
 from typing import Dict
 from dataclasses import dataclass
@@ -248,12 +249,19 @@ class SessionService:
         Returns ErrorMessage if validation fails, None on success (idempotent for unknown/ended sessions).
         Only cancels and removes from active registry; never affects another session unless explicitly called with its ID.
         """
-        if not session_id:
+        if not isinstance(session_id, str) or not session_id.strip():
             return ErrorMessage(
-                session_id=session_id,
-                timestamp_ms=timestamp_ms,
+                session_id=session_id if isinstance(session_id, str) else "unknown",
+                timestamp_ms=time.time() * 1000,
                 code=ErrorCode.INVALID_MESSAGE,
                 detail="session_id cannot be empty",
+            )
+        if isinstance(timestamp_ms, bool) or not isinstance(timestamp_ms, (int, float)) or not math.isfinite(timestamp_ms) or timestamp_ms < 0:
+            return ErrorMessage(
+                session_id=session_id,
+                timestamp_ms=time.time() * 1000,
+                code=ErrorCode.INVALID_MESSAGE,
+                detail="timestamp_ms must be finite and non-negative",
             )
 
         mgr = self._sessions.get(session_id)
