@@ -60,10 +60,14 @@ def valid_cancel_session(session_id: str = "sess-001") -> CancelSession:
     )
 
 
-def valid_resume_session(session_id: str = "sess-001") -> ResumeSession:
+def valid_resume_session(
+    session_id: str = "sess-001",
+    last_seq_a2b: int = 42,
+    last_seq_b2a: int = 38,
+) -> ResumeSession:
     return ResumeSession(
         session_id=session_id,
         timestamp_ms=2500.0,
-        last_seq_a2b=42,
-        last_seq_b2a=38,
+        last_seq_a2b=last_seq_a2b,
+        last_seq_b2a=last_seq_b2a,
     )
