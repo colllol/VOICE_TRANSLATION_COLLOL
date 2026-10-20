@@ -20,30 +20,29 @@ def write_jsonl(lines: list) -> str:
     return path
 
 
-# Four sessions, each a clean capture->first_audio chain. Cold = first capture in
-# a session, warm = a later capture in the same session. Two directions covered.
+# Four utterances across three sessions: cold/warm states, two directions.
+# Schema: session_id, utterance_id, direction, event, timestamp_ms, warm_state (on capture_end only).
 CLEAN_EVENTS = [
-    # session s1 / a2b: cold chain capture=1000, asr=1100, nmt=1200, tts_start=1250, audio=1300
-    {"session_id": "s1", "direction": "a2b", "event": "capture", "timestamp_ms": 1000},
-    {"session_id": "s1", "direction": "a2b", "event": "asr_end", "timestamp_ms": 1100},
-    {"session_id": "s1", "direction": "a2b", "event": "nmt_end", "timestamp_ms": 1200},
-    {"session_id": "s1", "direction": "a2b", "event": "tts_start", "timestamp_ms": 1250},
-    {"session_id": "s1", "direction": "a2b", "event": "first_audio", "timestamp_ms": 1300},
-    # session s1 / a2b warm chain capture=2000 -> audio=2300
-    {"session_id": "s1", "direction": "a2b", "event": "capture", "timestamp_ms": 2000},
-    {"session_id": "s1", "direction": "a2b", "event": "asr_end", "timestamp_ms": 2110},
-    {"session_id": "s1", "direction": "a2b", "event": "nmt_end", "timestamp_ms": 2210},
-    {"session_id": "s1", "direction": "a2b", "event": "first_audio", "timestamp_ms": 2300},
-    # session s2 / b2a cold chain capture=5000 -> audio=5400
-    {"session_id": "s2", "direction": "b2a", "event": "capture", "timestamp_ms": 5000},
-    {"session_id": "s2", "direction": "b2a", "event": "asr_end", "timestamp_ms": 5200},
-    {"session_id": "s2", "direction": "b2a", "event": "nmt_end", "timestamp_ms": 5350},
-    {"session_id": "s2", "direction": "b2a", "event": "first_audio", "timestamp_ms": 5400},
-    # session s3 / b2a cold chain capture=9000 -> audio=9250
-    {"session_id": "s3", "direction": "b2a", "event": "capture", "timestamp_ms": 9000},
-    {"session_id": "s3", "direction": "b2a", "event": "asr_end", "timestamp_ms": 9100},
-    {"session_id": "s3", "direction": "b2a", "event": "nmt_end", "timestamp_ms": 9180},
-    {"session_id": "s3", "direction": "b2a", "event": "first_audio", "timestamp_ms": 9250},
+    # s1/u1 a2b cold: capture=1000 -> audio=1300
+    {"session_id": "s1", "utterance_id": "u1", "direction": "a2b", "event": "capture_end", "timestamp_ms": 1000, "warm_state": "cold"},
+    {"session_id": "s1", "utterance_id": "u1", "direction": "a2b", "event": "asr_end", "timestamp_ms": 1100},
+    {"session_id": "s1", "utterance_id": "u1", "direction": "a2b", "event": "nmt_end", "timestamp_ms": 1200},
+    {"session_id": "s1", "utterance_id": "u1", "direction": "a2b", "event": "first_audio", "timestamp_ms": 1300},
+    # s1/u2 a2b warm: capture=2000 -> audio=2300
+    {"session_id": "s1", "utterance_id": "u2", "direction": "a2b", "event": "capture_end", "timestamp_ms": 2000, "warm_state": "warm"},
+    {"session_id": "s1", "utterance_id": "u2", "direction": "a2b", "event": "asr_end", "timestamp_ms": 2110},
+    {"session_id": "s1", "utterance_id": "u2", "direction": "a2b", "event": "nmt_end", "timestamp_ms": 2210},
+    {"session_id": "s1", "utterance_id": "u2", "direction": "a2b", "event": "first_audio", "timestamp_ms": 2300},
+    # s2/u1 b2a cold: capture=5000 -> audio=5400
+    {"session_id": "s2", "utterance_id": "u1", "direction": "b2a", "event": "capture_end", "timestamp_ms": 5000, "warm_state": "cold"},
+    {"session_id": "s2", "utterance_id": "u1", "direction": "b2a", "event": "asr_end", "timestamp_ms": 5200},
+    {"session_id": "s2", "utterance_id": "u1", "direction": "b2a", "event": "nmt_end", "timestamp_ms": 5350},
+    {"session_id": "s2", "utterance_id": "u1", "direction": "b2a", "event": "first_audio", "timestamp_ms": 5400},
+    # s3/u1 b2a cold: capture=9000 -> audio=9250
+    {"session_id": "s3", "utterance_id": "u1", "direction": "b2a", "event": "capture_end", "timestamp_ms": 9000, "warm_state": "cold"},
+    {"session_id": "s3", "utterance_id": "u1", "direction": "b2a", "event": "asr_end", "timestamp_ms": 9100},
+    {"session_id": "s3", "utterance_id": "u1", "direction": "b2a", "event": "nmt_end", "timestamp_ms": 9180},
+    {"session_id": "s3", "utterance_id": "u1", "direction": "b2a", "event": "first_audio", "timestamp_ms": 9250},
 ]
 
 
