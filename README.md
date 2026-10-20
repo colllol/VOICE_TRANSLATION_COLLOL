@@ -20,13 +20,18 @@ The Android debug build currently provides:
 - Local persistence of the selected app package and language choices using `SharedPreferences`.
 - A fail-closed readiness check that does not capture, send, or translate audio.
 
+The backend additionally has a contract-tested `/ws/session` endpoint for session lifecycle and Base64-encoded test audio frames. It uses fake providers or fail-closed real-provider stubs; it does **not** perform real ASR/NMT/TTS inference or send translated audio to a peer.
+
 The picker does **not** monitor calls in the background and does not inject audio into arbitrary third-party Android calling apps. The first real demo must use a VoIP integration controlled by the project, as required by the architecture notes.
 
 ## Development checks
 
 ```powershell
+python -m pip install -r backend/requirements.txt pytest
 python -m backend.smoke
 python tools/check_repo.py
+python -m pytest backend/ protocol/ -v
+python -m unittest research.models.test_benchmark -v
 python -m unittest research.audio_route.test_route -v
 $env:ANDROID_HOME='C:/Users/Admin/AppData/Local/Android/Sdk'
 ./android/gradlew.bat -p android :app:assembleDebug :app:lintDebug
@@ -37,8 +42,10 @@ These checks do not prove real ASR/NMT/TTS inference, VoIP media injection, or t
 ## Remaining gates
 
 - `VT-005`: controlled VoIP media-hook feasibility and device gates A–E.
-- `VT-002` / `VT-004`: reviewed transport contract and architecture decision after VoIP evidence.
-- `VT-011` / `VT-010` / `VT-012` / `VT-013`: audio lifecycle, session service, providers, and duplex orchestration after the gates.
+- `VT-002`: contract core is implemented and tested; controlled VoIP/device validation and architecture gate remain open.
+- `VT-004`: architecture decision remains blocked by VT-003/VT-005 evidence.
+- `VT-010` / `VT-012`: WebSocket/session and provider boundaries are implemented and contract-tested; production deployment, real providers and runtime audio are not implemented.
+- `VT-011` / `VT-013`: Android audio lifecycle and duplex orchestration remain after architecture and runtime gates.
 - `VT-003`: real model benchmark remains blocked until model revisions, licensed corpus, hardware/runtime, and approved provider inputs are available.
 
 ## Branch and commit policy
