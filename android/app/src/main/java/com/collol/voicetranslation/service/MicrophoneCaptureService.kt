@@ -110,7 +110,16 @@ class MicrophoneCaptureService : Service() {
 
     private fun onPcmChunk(chunk: CapturedPcmChunk) {
         if (!hasMicrophonePermission()) {
-            stopCapture()
+            CapturePermissionRevocationHandler(
+                stopCapture = ::stopCapture,
+                markPermissionDenied = {
+                    CaptureUiStatusStore.write(this, CaptureUiStatus.PERMISSION_DENIED)
+                },
+                stopService = {
+                    active = false
+                    stopSelf()
+                },
+            ).handle()
             return
         }
         // Keep the capture boundary in-process until a controlled transport is integrated.

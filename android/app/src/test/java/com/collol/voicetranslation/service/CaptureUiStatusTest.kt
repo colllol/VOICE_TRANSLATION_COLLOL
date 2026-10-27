@@ -16,4 +16,20 @@ class CaptureUiStatusTest {
             assertEquals(status, CaptureUiStatus.fromStoredValue(status.name))
         }
     }
+
+    @Test
+    fun `permission revocation stops capture marks denial and stops service`() {
+        val events = mutableListOf<String>()
+
+        CapturePermissionRevocationHandler(
+            stopCapture = { events += "capture-stopped" },
+            markPermissionDenied = { events += "permission-denied" },
+            stopService = { events += "service-stopped" },
+        ).handle()
+
+        assertEquals(
+            listOf("capture-stopped", "permission-denied", "service-stopped"),
+            events,
+        )
+    }
 }

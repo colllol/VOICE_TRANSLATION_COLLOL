@@ -31,3 +31,16 @@ object CaptureUiStatusStore {
             .apply()
     }
 }
+
+/** Keeps permission revocation cleanup ordered and independently testable. */
+class CapturePermissionRevocationHandler(
+    private val stopCapture: () -> Unit,
+    private val markPermissionDenied: () -> Unit,
+    private val stopService: () -> Unit,
+) {
+    fun handle() {
+        stopCapture()
+        markPermissionDenied()
+        stopService()
+    }
+}
