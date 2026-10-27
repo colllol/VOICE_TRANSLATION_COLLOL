@@ -1,0 +1,18 @@
+{
+  "device_proof": {
+    "path": "path/to/device-proof.txt",
+    "sha256": "replace-with-sha256-of-file"
+  },
+  "voip_trace": {
+    "path": "path/to/controlled-voip-trace.txt",
+    "sha256": "replace-with-sha256-of-file"
+  },
+  "model_benchmark": {
+    "path": "path/to/approved-model-benchmark.json",
+    "sha256": "replace-with-sha256-of-file"
+  },
+  "latency_measurement": {
+    "path": "path/to/latency-measurement.json",
+    "sha256": "replace-with-sha256-of-file"
+  }
+}
