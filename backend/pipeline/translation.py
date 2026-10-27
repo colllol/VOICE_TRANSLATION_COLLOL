@@ -154,11 +154,10 @@ class TranslationPipeline:
         )
         output_audio = self._providers.tts.synthesize(translated_text, target_lang)
 
-        output_direction = self._opposite(direction)
-        output_state = self._sequences[output_direction]
+        output_state = self._sequences[direction]
         output = AudioChunk(
             session_id=self.session_id,
-            direction=output_direction,
+            direction=direction,
             seq=output_state.next_output_seq,
             timestamp_ms=inbound.timestamp_ms,
             payload=output_audio,
@@ -183,9 +182,3 @@ class TranslationPipeline:
         if direction is Direction.A_TO_B:
             return self.source_lang, self.target_lang
         return self.target_lang, self.source_lang
-
-    @staticmethod
-    def _opposite(direction: Direction) -> Direction:
-        if direction is Direction.A_TO_B:
-            return Direction.B_TO_A
-        return Direction.A_TO_B

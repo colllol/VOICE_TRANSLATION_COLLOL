@@ -44,14 +44,14 @@ def test_a2b_and_b2a_are_independent_provider_paths():
 
     a2b_output = pipe.process_next(Direction.A_TO_B)
     assert a2b_output is not None
-    assert a2b_output.direction is Direction.B_TO_A
+    assert a2b_output.direction is Direction.A_TO_B
     assert a2b_output.seq == 0
     assert a2b_output.payload.startswith(b"FAKE_AUDIO_TEST")
     assert pipe.queue_depth(Direction.B_TO_A) == 1
 
     b2a_output = pipe.process_next(Direction.B_TO_A)
     assert b2a_output is not None
-    assert b2a_output.direction is Direction.A_TO_B
+    assert b2a_output.direction is Direction.B_TO_A
     assert b2a_output.seq == 0
     assert b2a_output.payload.startswith(b"FAKE_AUDIO_TEST")
 
