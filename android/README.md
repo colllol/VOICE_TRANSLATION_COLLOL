@@ -1,6 +1,6 @@
 # Android scaffold
 
-Requirements: JDK 21, Android SDK platform 36/build-tools 36.0.0. Set ANDROID_HOME to your SDK.
+Requirements: JDK 21, Android SDK platform 36/build-tools 36.0.0. Configure the SDK with ANDROID_HOME, ANDROID_SDK_ROOT, or android/local.properties (`sdk.dir=...`).
 
 Windows: `android\gradlew.bat -p android :app:assembleDebug :app:lintDebug`
 Linux: `bash android/gradlew -p android :app:assembleDebug :app:lintDebug`

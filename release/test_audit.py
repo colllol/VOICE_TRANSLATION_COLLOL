@@ -63,6 +63,65 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertIn("ANDROID_HOME", result["output"])
 
+    def test_android_sdk_local_properties_fallback_runs_gradle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = root / "sdk"
+            sdk.mkdir()
+            android = root / "android"
+            android.mkdir()
+            (android / "local.properties").write_text(
+                f"sdk.dir={sdk.as_posix()}\n",
+                encoding="utf-8",
+            )
+            expected = {"status": "passed", "exit_code": 0}
+            with patch.dict(
+                audit.os.environ, {"ANDROID_HOME": "", "ANDROID_SDK_ROOT": ""}
+            ), patch.object(audit, "run_command", return_value=expected) as run_command:
+                result = audit.android_check(root)
+
+        run_command.assert_called_once()
+        self.assertEqual(result["status"], "passed")
+
+    def test_invalid_android_home_falls_back_to_valid_sdk_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = root / "sdk"
+            sdk.mkdir()
+            with patch.dict(
+                audit.os.environ,
+                {"ANDROID_HOME": str(root / "missing"), "ANDROID_SDK_ROOT": str(sdk)},
+            ), patch.object(
+                audit, "run_command", return_value={"status": "passed"}
+            ) as run_command:
+                result = audit.android_check(root)
+
+        run_command.assert_called_once()
+        self.assertEqual(result["status"], "passed")
+
+    def test_invalid_environment_sdk_falls_back_to_escaped_local_properties(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = root / "Android SDK"
+            sdk.mkdir()
+            android = root / "android"
+            android.mkdir()
+            escaped = str(sdk).replace("\\", "\\\\").replace(" ", "\\ ")
+            (android / "local.properties").write_text(
+                f"sdk.dir={escaped}\n",
+                encoding="utf-8",
+            )
+            with patch.dict(
+                audit.os.environ,
+                {"ANDROID_HOME": str(root / "missing"), "ANDROID_SDK_ROOT": ""},
+            ), patch.object(
+                audit, "run_command", return_value={"status": "passed"}
+            ) as run_command:
+                result = audit.android_check(root)
+
+        run_command.assert_called_once()
+        self.assertEqual(result["status"], "passed")
+
     def test_dry_run_does_not_execute_commands(self):
         with patch.object(audit, "run_command") as run_command:
             result = audit.run_checks(Path("."), dry_run=True)

@@ -16,6 +16,7 @@ import sys
 import zipfile
 from typing import Any, Sequence
 
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ARTIFACT = ROOT / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
 REQUIRED_EVIDENCE = (
@@ -84,15 +85,58 @@ def android_command() -> list[str]:
 
 
 def android_check(root: Path = ROOT) -> dict[str, Any]:
-    sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+    sdk = next(
+        (
+            value
+            for value in (os.environ.get("ANDROID_HOME"), os.environ.get("ANDROID_SDK_ROOT"))
+            if value and Path(value).is_dir()
+        ),
+        None,
+    )
+    if sdk is None:
+        properties = root / "android" / "local.properties"
+        try:
+            for line in properties.read_text(encoding="utf-8").splitlines():
+                key, separator, value = line.partition("=")
+                if separator and key.strip() == "sdk.dir":
+                    sdk = _unescape_property(value.strip())
+                    if sdk and not Path(sdk).is_absolute():
+                        sdk = str((properties.parent / sdk).resolve())
+                    break
+        except OSError:
+            pass
     if not sdk or not Path(sdk).is_dir():
         return {
             "status": "blocked",
             "command": command_text(android_command()),
             "exit_code": None,
-            "output": "Android SDK not found; set ANDROID_HOME or ANDROID_SDK_ROOT to a valid directory.",
+            "output": "Android SDK not found; set ANDROID_HOME or ANDROID_SDK_ROOT, or configure android/local.properties.",
         }
     return run_command(android_command(), cwd=root)
+
+
+def _unescape_property(value: str) -> str:
+    result: list[str] = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        index += 1
+        if char != "\\" or index == len(value):
+            result.append(char)
+            continue
+        escaped = value[index]
+        index += 1
+        if escaped == "u" and index + 4 <= len(value):
+            digits = value[index:index + 4]
+            try:
+                result.append(chr(int(digits, 16)))
+                index += 4
+                continue
+            except ValueError:
+                result.extend(("\\", escaped))
+                continue
+        result.append(escaped)
+    return "".join(result)
 
 
 def run_checks(root: Path = ROOT, dry_run: bool = False, include_android: bool = False) -> dict[str, Any]:
