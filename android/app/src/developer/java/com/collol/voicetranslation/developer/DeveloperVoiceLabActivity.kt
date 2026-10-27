@@ -60,6 +60,11 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
     private var textToSpeech: TextToSpeech? = null
     private var diagnostics: AudioDiagnosticsRecorder? = null
     private var stageStartedAtMillis = 0L
+    private var asrClientRetryCount = 0
+    private var runGeneration = 0L
+    private var utteranceGeneration = 0L
+    private var diagnosticsReleasePending = false
+    private var deferredStartRequested = false
 
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -93,11 +98,17 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
     }
 
     private fun startLab() {
+        if (diagnosticsReleasePending) {
+            deferredStartRequested = true
+            status = "Đang giải phóng microphone trước khi bắt đầu lại..."
+            return
+        }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             setError("Thiết bị không có SpeechRecognizer khả dụng")
             return
         }
         clearRun()
+        val generation = ++runGeneration
         MicrophoneCaptureCommands.stop(this)
         running = true
         stageStartedAtMillis = SystemClock.elapsedRealtime()
@@ -106,11 +117,17 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         diagnostics = AudioDiagnosticsRecorder(
             onMetrics = { value ->
                 runOnUiThread {
-                    metrics = value
-                    chunkCount++
+                    if (isCurrentRun(generation)) {
+                        metrics = value
+                        chunkCount++
+                    }
                 }
             },
-            onFailure = { cause -> runOnUiThread { log("Audio metrics lỗi: ${cause.message}") } },
+            onFailure = { cause ->
+                runOnUiThread {
+                    if (isCurrentRun(generation)) log("Audio metrics lỗi: ${cause.message}")
+                }
+            },
         ).also { it.start() }
         translator = Translation.getClient(
             TranslatorOptions.Builder()
@@ -120,15 +137,43 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         )
         translator?.downloadModelIfNeeded(DownloadConditions.Builder().build())
             ?.addOnSuccessListener {
+                if (!isCurrentRun(generation)) return@addOnSuccessListener
                 log("Model dịch $SOURCE_LANGUAGE->$TARGET_LANGUAGE sẵn sàng trong ${elapsedStageMillis()} ms")
                 status = "Đang nghe... Hãy nói một câu"
-                startRecognition()
+                startRecognition(generation, ++utteranceGeneration)
             }
-            ?.addOnFailureListener { cause -> setError("Không tải được model dịch: ${cause.message}") }
+            ?.addOnFailureListener { cause ->
+                if (isCurrentRun(generation)) setError("Không tải được model dịch: ${cause.message}")
+            }
     }
 
-    private fun startRecognition() {
-        if (!running) return
+    private fun startRecognition(generation: Long, utterance: Long) {
+        if (!isCurrentUtterance(generation, utterance)) return
+        textToSpeech?.stop()
+        val recorder = diagnostics
+        if (recorder == null) {
+            window.decorView.postDelayed({
+                if (isCurrentUtterance(generation, utterance)) createSpeechRecognizer(generation, utterance)
+            }, MICROPHONE_RELEASE_DELAY_MILLIS)
+        } else {
+            diagnostics = null
+            diagnosticsReleasePending = true
+            recorder.stop {
+                window.decorView.post {
+                    diagnosticsReleasePending = false
+                    if (isCurrentUtterance(generation, utterance)) {
+                        log("Audio diagnostics đã release trước ASR")
+                        createSpeechRecognizer(generation, utterance)
+                    } else {
+                        startDeferredRunIfRequested()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun createSpeechRecognizer(generation: Long, utterance: Long) {
+        if (!isCurrentUtterance(generation, utterance)) return
         stageStartedAtMillis = SystemClock.elapsedRealtime()
         speechRecognizer?.destroy()
         speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
@@ -139,25 +184,49 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
             SpeechRecognizer.createSpeechRecognizer(this)
         }.also { recognizer ->
             recognizer.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) { status = "Đang nghe..." }
-                override fun onBeginningOfSpeech() { isListening = true; status = "Đang nhận giọng nói..." }
-                override fun onRmsChanged(rmsdB: Float) {
-                    if (rmsdB.isFinite()) logThrottled("ASR RMS ${rmsdB.roundToInt()} dB")
+                override fun onReadyForSpeech(params: Bundle?) {
+                    if (isCurrentUtterance(generation, utterance)) status = "Đang nghe..."
                 }
-                override fun onEndOfSpeech() { isListening = false; status = "Đang xử lý ASR..." }
+                override fun onBeginningOfSpeech() {
+                    if (isCurrentUtterance(generation, utterance)) { isListening = true; status = "Đang nhận giọng nói..." }
+                }
+                override fun onRmsChanged(rmsdB: Float) {
+                    if (isCurrentUtterance(generation, utterance) && rmsdB.isFinite()) {
+                        metrics = metrics.copy(rms = VoiceLabAudioPolicy.normalizedRmsFromSpeechDb(rmsdB))
+                        logThrottled("ASR RMS ${rmsdB.roundToInt()} dB")
+                    }
+                }
+                override fun onEndOfSpeech() {
+                    if (isCurrentUtterance(generation, utterance)) { isListening = false; status = "Đang xử lý ASR..." }
+                }
                 override fun onResults(results: Bundle?) {
+                    if (!isCurrentUtterance(generation, utterance)) return
+                    asrClientRetryCount = 0
                     val value = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
                     if (value.isBlank()) {
                         setError("ASR không trả transcript")
                     } else {
                         transcript = value
                         log("ASR hoàn tất trong ${elapsedStageMillis()} ms: ${value.take(80)}")
-                        translate(value)
+                        translate(value, generation, utterance)
                     }
                 }
                 override fun onError(error: Int) {
+                    if (!isCurrentUtterance(generation, utterance)) return
                     isListening = false
-                    if (running) setError("ASR lỗi mã $error")
+                    if (running && error == SpeechRecognizer.ERROR_CLIENT && asrClientRetryCount == 0) {
+                        asrClientRetryCount++
+                        log("ASR client lỗi mã 5; giải phóng recognizer và thử lại một lần")
+                        speechRecognizer?.destroy()
+                        speechRecognizer = null
+                        window.decorView.postDelayed({
+                            if (isCurrentUtterance(generation, utterance)) {
+                                startRecognition(generation, utterance)
+                            }
+                        }, ASR_RETRY_DELAY_MILLIS)
+                    } else if (running) {
+                        setError("ASR lỗi mã $error")
+                    }
                 }
                 override fun onBufferReceived(buffer: ByteArray?) = Unit
                 override fun onPartialResults(partialResults: Bundle?) = Unit
@@ -171,14 +240,17 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
-        speechRecognizer?.startListening(intent)
+        runCatching { speechRecognizer?.startListening(intent) }
+            .onFailure { setError("Không thể khởi động ASR: ${it.message}") }
     }
 
-    private fun translate(value: String) {
+    private fun translate(value: String, generation: Long, utterance: Long) {
+        if (!isCurrentUtterance(generation, utterance)) return
         status = "Đang dịch..."
         stageStartedAtMillis = SystemClock.elapsedRealtime()
         translator?.translate(value)
             ?.addOnSuccessListener { result ->
+                if (!isCurrentUtterance(generation, utterance)) return@addOnSuccessListener
                 translation = result
                 log("NMT hoàn tất trong ${elapsedStageMillis()} ms: ${result.take(80)}")
                 status = "Đang phát TTS..."
@@ -193,14 +265,18 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
                 tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(id: String?) = Unit
                     override fun onDone(id: String?) {
-                        if (id == utteranceId && running) runOnUiThread {
-                            log("TTS phát xong trong ${elapsedStageMillis()} ms")
-                            status = "Hoàn tất; bấm Nói câu khác để chạy tiếp"
+                        if (id == utteranceId && isCurrentUtterance(generation, utterance)) runOnUiThread {
+                            if (isCurrentUtterance(generation, utterance)) {
+                                log("TTS phát xong trong ${elapsedStageMillis()} ms")
+                                status = "Hoàn tất; bấm Nói câu khác để chạy tiếp"
+                            }
                         }
                     }
                     @Deprecated("Deprecated in Java")
                     override fun onError(id: String?) {
-                        if (id == utteranceId && running) runOnUiThread { setError("TTS không phát được kết quả") }
+                        if (id == utteranceId && isCurrentUtterance(generation, utterance)) runOnUiThread {
+                            if (isCurrentUtterance(generation, utterance)) setError("TTS không phát được kết quả")
+                        }
                     }
                 })
                 if (tts.speak(result, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
@@ -209,18 +285,38 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
                     log("TTS bắt đầu phát ra loa")
                 }
             }
-            ?.addOnFailureListener { cause -> setError("Dịch lỗi: ${cause.message}") }
+            ?.addOnFailureListener { cause ->
+                if (isCurrentUtterance(generation, utterance)) setError("Dịch lỗi: ${cause.message}")
+            }
+    }
+
+    private fun startNextUtterance() {
+        if (!running || diagnosticsReleasePending) return
+        transcript = ""
+        translation = ""
+        isListening = false
+        status = "Đang chuẩn bị microphone..."
+        startRecognition(runGeneration, ++utteranceGeneration)
     }
 
     private fun stopLab() {
         if (!running && diagnostics == null) return
+        runGeneration++
         running = false
         isListening = false
         speechRecognizer?.cancel()
         speechRecognizer?.destroy()
         speechRecognizer = null
         textToSpeech?.stop()
-        diagnostics?.stop()
+        diagnostics?.let { recorder ->
+            diagnosticsReleasePending = true
+            recorder.stop {
+                window.decorView.post {
+                    diagnosticsReleasePending = false
+                    startDeferredRunIfRequested()
+                }
+            }
+        }
         diagnostics = null
         translator?.close()
         translator = null
@@ -234,6 +330,20 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         translation = ""
         chunkCount = 0
         metrics = AudioMetrics(0.0, 0.0, 0)
+        asrClientRetryCount = 0
+    }
+
+    private fun isCurrentRun(generation: Long): Boolean =
+        VoiceLabAudioPolicy.isCurrentRun(generation, runGeneration, running)
+
+    private fun isCurrentUtterance(generation: Long, utterance: Long): Boolean =
+        isCurrentRun(generation) && VoiceLabAudioPolicy.isCurrentUtterance(utterance, utteranceGeneration)
+
+    private fun startDeferredRunIfRequested() {
+        if (deferredStartRequested && !isFinishing) {
+            deferredStartRequested = false
+            startLab()
+        }
     }
 
     private fun setError(message: String) {
@@ -272,8 +382,8 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
             Text("Trạng thái: $status")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = ::toggleLab) { Text(if (running) "Dừng test" else "Bắt đầu test") }
-                if (running && !isListening && transcript.isNotBlank()) {
-                    OutlinedButton(onClick = ::startRecognition) { Text("Nói câu khác") }
+                if (running && !isListening && transcript.isNotBlank() && translation.isNotBlank() && status.startsWith("Hoàn tất")) {
+                    OutlinedButton(onClick = ::startNextUtterance) { Text("Nói câu khác") }
                 }
                 OutlinedButton(onClick = { finish() }) { Text("Đóng") }
             }
@@ -295,5 +405,7 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         private const val TARGET_LANGUAGE = "en"
         private val SOURCE_LOCALE = Locale.forLanguageTag("vi-VN")
         private val TARGET_LOCALE = Locale.US
+        private const val ASR_RETRY_DELAY_MILLIS = 250L
+        private const val MICROPHONE_RELEASE_DELAY_MILLIS = 350L
     }
 }

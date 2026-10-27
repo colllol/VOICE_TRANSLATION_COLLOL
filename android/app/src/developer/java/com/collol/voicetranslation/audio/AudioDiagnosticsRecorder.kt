@@ -48,14 +48,32 @@ class AudioDiagnosticsRecorder(
         }
     }
 
-    fun stop() {
-        if (!running.getAndSet(false)) return
+    fun stop(onReleased: () -> Unit = {}) {
+        running.set(false)
         releaseRequested.set(true)
         runCatching { recorder?.stop() }
-        if (Thread.currentThread() !== worker) {
-            runCatching { worker?.join(JOIN_TIMEOUT_MILLIS) }
+        val readWorker = worker
+        if (readWorker == null || !readWorker.isAlive) {
+            releaseRecorder()
+            onReleased()
+        } else {
+            Thread({
+                var interrupted = false
+                while (readWorker.isAlive) {
+                    try {
+                        readWorker.join()
+                    } catch (_: InterruptedException) {
+                        interrupted = true
+                    }
+                }
+                releaseRecorder()
+                onReleased()
+                if (interrupted) Thread.currentThread().interrupt()
+            }, "voice-translation-developer-mic-release").apply {
+                isDaemon = true
+                start()
+            }
         }
-        if (worker?.isAlive != true) releaseRecorder()
     }
 
     private fun readLoop() {
@@ -79,6 +97,7 @@ class AudioDiagnosticsRecorder(
         }
     }
 
+    @Synchronized
     private fun releaseRecorder() {
         if (released.compareAndSet(false, true)) runCatching { recorder?.release() }
         recorder = null
@@ -89,6 +108,5 @@ class AudioDiagnosticsRecorder(
         const val SAMPLE_RATE_HZ = 16_000
         private const val WINDOW_SAMPLES = 1024
         private const val BYTES_PER_SAMPLE = 2
-        private const val JOIN_TIMEOUT_MILLIS = 500L
     }
 }
