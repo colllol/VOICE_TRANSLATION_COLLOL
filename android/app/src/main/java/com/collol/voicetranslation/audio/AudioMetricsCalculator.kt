@@ -2,7 +2,6 @@ package com.collol.voicetranslation.audio
 
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -31,18 +30,26 @@ object AudioMetricsCalculator {
 
         val windowSize = minOf(samples.size, 1024)
         val binLimit = windowSize / 2
+        val windowedSamples = DoubleArray(windowSize) { index ->
+            val window = if (windowSize > 1) {
+                0.54 - 0.46 * kotlin.math.cos(2.0 * PI * index / (windowSize - 1))
+            } else {
+                1.0
+            }
+            samples[index].toInt() / 32768.0 * window
+        }
         var bestBin = 0
         var bestMagnitude = 0.0
         for (bin in 1..binLimit) {
-            var real = 0.0
-            var imaginary = 0.0
+            val coefficient = 2.0 * kotlin.math.cos(2.0 * PI * bin / windowSize)
+            var previous = 0.0
+            var previousPrevious = 0.0
             for (index in 0 until windowSize) {
-                val angle = 2.0 * PI * bin * index / windowSize
-                val value = samples[index].toInt() / 32768.0
-                real += value * cos(angle)
-                imaginary -= value * sin(angle)
+                val current = windowedSamples[index] + coefficient * previous - previousPrevious
+                previousPrevious = previous
+                previous = current
             }
-            val magnitude = real * real + imaginary * imaginary
+            val magnitude = previous * previous + previousPrevious * previousPrevious - coefficient * previous * previousPrevious
             if (magnitude > bestMagnitude) {
                 bestMagnitude = magnitude
                 bestBin = bin

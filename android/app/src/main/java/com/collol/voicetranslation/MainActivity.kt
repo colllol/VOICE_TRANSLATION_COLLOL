@@ -99,6 +99,19 @@ private fun SetupScreen(onClose: () -> Unit) {
             Text("Thiết lập cuộc gọi", style = MaterialTheme.typography.titleLarge)
             Text("Bản phát triển • Chưa hỗ trợ dịch cuộc gọi", color = MaterialTheme.colorScheme.error)
             Text("Bạn (A) điều khiển dịch. Người B tham gia cuộc gọi thông thường, không cần cài công cụ dịch.")
+            if (BuildConfig.DEVELOPER_MODE) {
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent().setClassName(
+                                context,
+                                "com.collol.voicetranslation.developer.DeveloperVoiceLabActivity",
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Developer Voice Lab") }
+            }
 
             Text("Ứng dụng cuộc gọi", style = MaterialTheme.typography.titleMedium)
             Text("Chọn ứng dụng A sẽ mở để gọi. Bản xem trước chưa theo dõi hoặc chèn audio nền từ ứng dụng khác.", style = MaterialTheme.typography.bodySmall)

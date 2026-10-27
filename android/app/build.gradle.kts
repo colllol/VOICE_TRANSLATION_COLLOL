@@ -14,9 +14,25 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("boolean", "DEVELOPER_MODE", "false")
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    buildTypes {
+        getByName("debug") {
+            buildConfigField("boolean", "DEVELOPER_MODE", "false")
+        }
+        create("developer") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".developer"
+            versionNameSuffix = "-developer"
+            buildConfigField("boolean", "DEVELOPER_MODE", "true")
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -40,5 +56,6 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.08.00"))
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.material3:material3")
+    add("developerImplementation", "com.google.mlkit:translate:17.0.3")
     testImplementation("junit:junit:4.13.2")
 }

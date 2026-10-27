@@ -12,6 +12,8 @@ class AudioDiagnosticsRecorder(
     private val onFailure: (Throwable) -> Unit,
 ) {
     private val running = AtomicBoolean(false)
+    private val releaseRequested = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
     private var recorder: AudioRecord? = null
     private var worker: Thread? = null
 
@@ -40,21 +42,20 @@ class AudioDiagnosticsRecorder(
             worker = Thread(::readLoop, "voice-translation-developer-metrics").also { it.start() }
         } catch (cause: Throwable) {
             running.set(false)
-            recorder?.release()
-            recorder = null
+            releaseRequested.set(true)
+            if (worker?.isAlive != true) releaseRecorder()
             onFailure(cause)
         }
     }
 
     fun stop() {
         if (!running.getAndSet(false)) return
+        releaseRequested.set(true)
         runCatching { recorder?.stop() }
         if (Thread.currentThread() !== worker) {
             runCatching { worker?.join(JOIN_TIMEOUT_MILLIS) }
         }
-        runCatching { recorder?.release() }
-        recorder = null
-        worker = null
+        if (worker?.isAlive != true) releaseRecorder()
     }
 
     private fun readLoop() {
@@ -73,7 +74,15 @@ class AudioDiagnosticsRecorder(
             }
         } catch (cause: Throwable) {
             if (running.get()) onFailure(cause)
+        } finally {
+            if (releaseRequested.get()) releaseRecorder()
         }
+    }
+
+    private fun releaseRecorder() {
+        if (released.compareAndSet(false, true)) runCatching { recorder?.release() }
+        recorder = null
+        worker = null
     }
 
     companion object {
