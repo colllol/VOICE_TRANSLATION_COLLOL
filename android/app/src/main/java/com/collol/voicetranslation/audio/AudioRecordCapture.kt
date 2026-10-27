@@ -1,5 +1,6 @@
 package com.collol.voicetranslation.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -17,6 +18,7 @@ class AudioRecordCapture(
     private val format: PcmFormat = DEFAULT_FORMAT,
     private val monotonicNanos: () -> Long = SystemClock::elapsedRealtimeNanos,
     private val chunkSink: PcmChunkSink,
+    private val onCaptureTerminated: () -> Unit = {},
 ) : CaptureResource {
     private val running = AtomicBoolean(false)
     private val worker = Thread(::readLoop, "voice-translation-audio-capture")
@@ -52,41 +54,38 @@ class AudioRecordCapture(
     }
 
     private fun readLoop() {
-        while (running.get()) {
-            val bytesRead = audioRecord.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
-            val completedAtNanos = monotonicNanos()
-            if (bytesRead <= 0) {
-                running.set(false)
-                break
-            }
-            if (bytesRead % format.bytesPerFrame != 0) {
-                running.set(false)
-                break
-            }
+        try {
+            while (running.get()) {
+                val bytesRead = audioRecord.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                val completedAtNanos = monotonicNanos()
+                if (bytesRead <= 0 || bytesRead % format.bytesPerFrame != 0) {
+                    break
+                }
 
-            val sampleCount = bytesRead / format.bytesPerSample
-            val timestamp = try {
-                timestampTracker.next(sampleCount, completedAtNanos)
-            } catch (_: IllegalArgumentException) {
-                running.set(false)
-                break
+                val sampleCount = bytesRead / format.bytesPerSample
+                val timestamp = try {
+                    timestampTracker.next(sampleCount, completedAtNanos)
+                } catch (_: IllegalArgumentException) {
+                    break
+                }
+                val pcm = buffer.copyOf(bytesRead)
+                try {
+                    chunkSink.onChunk(
+                        CapturedPcmChunk(
+                            sequence = timestamp.sequence,
+                            format = format,
+                            pcm = pcm,
+                            captureTimeNanos = timestamp.captureTimeNanos,
+                            durationNanos = timestamp.durationNanos,
+                            readCompletedAtNanos = timestamp.readCompletedAtNanos,
+                        ),
+                    )
+                } catch (_: Throwable) {
+                    break
+                }
             }
-            val pcm = buffer.copyOf(bytesRead)
-            try {
-                chunkSink.onChunk(
-                    CapturedPcmChunk(
-                        sequence = timestamp.sequence,
-                        format = format,
-                        pcm = pcm,
-                        captureTimeNanos = timestamp.captureTimeNanos,
-                        durationNanos = timestamp.durationNanos,
-                        readCompletedAtNanos = timestamp.readCompletedAtNanos,
-                    ),
-                )
-            } catch (_: Throwable) {
-                running.set(false)
-                break
-            }
+        } finally {
+            if (running.getAndSet(false)) onCaptureTerminated()
         }
     }
 
@@ -100,6 +99,7 @@ class AudioRecordCapture(
 
         fun create(
             chunkSink: PcmChunkSink,
+            onCaptureTerminated: () -> Unit = {},
             audioRecordFactory: (sampleRateHz: Int, channelMask: Int, encoding: Int, bufferSize: Int) -> AudioRecord =
                 ::createAudioRecord,
         ): AudioRecordCapture {
@@ -113,9 +113,11 @@ class AudioRecordCapture(
                 audioRecord = audioRecordFactory(format.sampleRateHz, channelMask, encoding, bufferSize),
                 format = format,
                 chunkSink = chunkSink,
+                onCaptureTerminated = onCaptureTerminated,
             )
         }
 
+        @SuppressLint("MissingPermission")
         private fun createAudioRecord(
             sampleRateHz: Int,
             channelMask: Int,

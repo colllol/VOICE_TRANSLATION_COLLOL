@@ -44,6 +44,10 @@ class MicrophoneCaptureService : Service() {
             if (captureController == null) {
                 val capture = AudioRecordCapture.create(
                     chunkSink = PcmChunkSink { chunk -> onPcmChunk(chunk) },
+                    onCaptureTerminated = {
+                        stopCapture()
+                        stopSelf()
+                    },
                 )
                 captureController = CaptureLifecycleController(
                     permissionGate = MicrophonePermissionGate(::hasMicrophonePermission),
@@ -84,8 +88,9 @@ class MicrophoneCaptureService : Service() {
             stopCapture()
             return
         }
-        // The chunk remains in-process until a separately controlled transport is integrated.
-        chunk.pcm.fill(0)
+        // Keep the capture boundary in-process until a controlled transport is integrated.
+        @Suppress("UNUSED_VARIABLE")
+        val inProcessChunk = chunk
     }
 
     private fun buildNotification(): Notification =
