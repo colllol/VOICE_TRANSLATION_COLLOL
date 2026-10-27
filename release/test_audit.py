@@ -82,6 +82,7 @@ class AuditTests(unittest.TestCase):
 
         run_command.assert_called_once()
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(run_command.call_args.kwargs["env"]["ANDROID_HOME"], sdk.as_posix())
 
     def test_invalid_android_home_falls_back_to_valid_sdk_root(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -98,6 +99,7 @@ class AuditTests(unittest.TestCase):
 
         run_command.assert_called_once()
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(run_command.call_args.kwargs["env"]["ANDROID_HOME"], str(sdk))
 
     def test_invalid_environment_sdk_falls_back_to_escaped_local_properties(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -121,6 +123,13 @@ class AuditTests(unittest.TestCase):
 
         run_command.assert_called_once()
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(run_command.call_args.kwargs["env"]["ANDROID_HOME"], str(sdk))
+
+    def test_unescape_property_preserves_windows_separators(self):
+        self.assertEqual(
+            audit._unescape_property(r"C:\\Users\\Admin\\Android SDK"),
+            r"C:\Users\Admin\Android SDK",
+        )
 
     def test_dry_run_does_not_execute_commands(self):
         with patch.object(audit, "run_command") as run_command:

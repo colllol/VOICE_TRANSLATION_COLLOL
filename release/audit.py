@@ -31,7 +31,11 @@ def command_text(command: Sequence[str]) -> str:
     return subprocess.list2cmdline(list(command)) if os.name == "nt" else shlex.join(command)
 
 
-def run_command(command: Sequence[str], cwd: Path = ROOT) -> dict[str, Any]:
+def run_command(
+    command: Sequence[str],
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Run one check and preserve enough output for an audit report."""
     try:
         completed = subprocess.run(
@@ -40,6 +44,7 @@ def run_command(command: Sequence[str], cwd: Path = ROOT) -> dict[str, Any]:
             text=True,
             capture_output=True,
             check=False,
+            env=env,
         )
     except OSError as exc:
         return {
@@ -112,7 +117,10 @@ def android_check(root: Path = ROOT) -> dict[str, Any]:
             "exit_code": None,
             "output": "Android SDK not found; set ANDROID_HOME or ANDROID_SDK_ROOT, or configure android/local.properties.",
         }
-    return run_command(android_command(), cwd=root)
+    gradle_env = os.environ.copy()
+    gradle_env["ANDROID_HOME"] = sdk
+    gradle_env["ANDROID_SDK_ROOT"] = sdk
+    return run_command(android_command(), cwd=root, env=gradle_env)
 
 
 def _unescape_property(value: str) -> str:
