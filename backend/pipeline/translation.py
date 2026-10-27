@@ -57,9 +57,11 @@ class TranslationPipeline:
 
     ``submit`` is the transport-facing operation. ``process_next`` performs
     one complete ASR -> NMT -> TTS operation synchronously and returns the
-    translated audio in the opposite direction. A gap in input sequence
-    numbers is allowed by the existing protocol; duplicates and older values
-    are rejected. Cancellation clears pending input and prevents new work.
+    translated audio for the same media path: ``A_TO_B`` remains outbound to
+    B, while ``B_TO_A`` remains inbound for A's render path. A gap in input
+    sequence numbers is allowed by the existing protocol; duplicates and older
+    values are rejected. Cancellation clears pending input and prevents new
+    work.
     """
 
     _DIRECTIONS: Final[tuple[Direction, Direction]] = (
