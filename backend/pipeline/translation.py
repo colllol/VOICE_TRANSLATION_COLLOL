@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from threading import Lock, RLock
 from typing import Deque, Final
 
 from backend.providers.base import ASRProvider, NMTProvider, TTSProvider
@@ -100,11 +101,11 @@ class TranslationPipeline:
         }
         self.max_queue_size = max_queue_size
         self.cancelled = False
+        self._state_lock = RLock()
+        self._processing_locks = {direction: Lock() for direction in self._DIRECTIONS}
 
     def submit(self, chunk: AudioChunk) -> None:
         """Validate and enqueue one inbound audio chunk."""
-        if self.cancelled:
-            raise PipelineCancelledError("pipeline is cancelled")
         if not isinstance(chunk, AudioChunk):
             raise PipelineInputError("chunk must be an AudioChunk")
         if chunk.session_id != self.session_id:
@@ -118,35 +119,43 @@ class TranslationPipeline:
         if not isinstance(chunk.payload, bytes) or not chunk.payload:
             raise PipelineInputError("payload must be non-empty bytes")
 
-        state = self._sequences[chunk.direction]
-        if chunk.seq < state.next_input_seq:
-            if chunk.seq == state.next_input_seq - 1:
-                raise DuplicateSequenceError(
-                    f"duplicate sequence {chunk.seq} for {chunk.direction.value}"
+        with self._state_lock:
+            if self.cancelled:
+                raise PipelineCancelledError("pipeline is cancelled")
+            state = self._sequences[chunk.direction]
+            if chunk.seq < state.next_input_seq:
+                if chunk.seq == state.next_input_seq - 1:
+                    raise DuplicateSequenceError(
+                        f"duplicate sequence {chunk.seq} for {chunk.direction.value}"
+                    )
+                raise StaleSequenceError(
+                    f"stale sequence {chunk.seq} for {chunk.direction.value}; "
+                    f"next is {state.next_input_seq}"
                 )
-            raise StaleSequenceError(
-                f"stale sequence {chunk.seq} for {chunk.direction.value}; "
-                f"next is {state.next_input_seq}"
-            )
-        if len(self._queues[chunk.direction]) >= self.max_queue_size:
-            raise QueueFullError(
-                f"queue full for {chunk.direction.value} at {self.max_queue_size}"
-            )
+            queue = self._queues[chunk.direction]
+            if len(queue) >= self.max_queue_size:
+                raise QueueFullError(
+                    f"queue full for {chunk.direction.value} at {self.max_queue_size}"
+                )
 
-        self._queues[chunk.direction].append(chunk)
-        state.next_input_seq = chunk.seq + 1
+            queue.append(chunk)
+            state.next_input_seq = chunk.seq + 1
 
     def process_next(self, direction: Direction) -> AudioChunk | None:
         """Translate the oldest queued chunk for ``direction`` if present."""
-        if self.cancelled:
-            raise PipelineCancelledError("pipeline is cancelled")
         if not isinstance(direction, Direction):
             raise PipelineInputError("direction must be a protocol Direction")
-        queue = self._queues[direction]
-        if not queue:
-            return None
+        with self._processing_locks[direction]:
+            return self._process_next_locked(direction)
 
-        inbound = queue.popleft()
+    def _process_next_locked(self, direction: Direction) -> AudioChunk | None:
+        with self._state_lock:
+            if self.cancelled:
+                raise PipelineCancelledError("pipeline is cancelled")
+            queue = self._queues[direction]
+            if not queue:
+                return None
+            inbound = queue[0]
         source_lang, target_lang = self._languages(direction)
         transcript = self._providers.asr.transcribe(inbound.payload)
         translated_text = self._providers.nmt.translate(
@@ -156,29 +165,37 @@ class TranslationPipeline:
         )
         output_audio = self._providers.tts.synthesize(translated_text, target_lang)
 
-        output_state = self._sequences[direction]
-        output = AudioChunk(
-            session_id=self.session_id,
-            direction=direction,
-            seq=output_state.next_output_seq,
-            timestamp_ms=inbound.timestamp_ms,
-            payload=output_audio,
-            is_final=inbound.is_final,
-        )
-        output_state.next_output_seq += 1
-        return output
+        with self._state_lock:
+            if self.cancelled:
+                raise PipelineCancelledError("pipeline was cancelled during provider work")
+            if not queue or queue[0] is not inbound:
+                raise PipelineError("pipeline queue changed during provider work")
+            output_state = self._sequences[direction]
+            output = AudioChunk(
+                session_id=self.session_id,
+                direction=direction,
+                seq=output_state.next_output_seq,
+                timestamp_ms=inbound.timestamp_ms,
+                payload=output_audio,
+                is_final=inbound.is_final,
+            )
+            queue.popleft()
+            output_state.next_output_seq += 1
+            return output
 
     def cancel(self) -> None:
         """Drop queued work and permanently stop this pipeline."""
-        self.cancelled = True
-        for queue in self._queues.values():
-            queue.clear()
+        with self._state_lock:
+            self.cancelled = True
+            for queue in self._queues.values():
+                queue.clear()
 
     def queue_depth(self, direction: Direction) -> int:
         """Return pending inbound work for one direction."""
         if not isinstance(direction, Direction):
             raise PipelineInputError("direction must be a protocol Direction")
-        return len(self._queues[direction])
+        with self._state_lock:
+            return len(self._queues[direction])
 
     def _languages(self, direction: Direction) -> tuple[str, str]:
         if direction is Direction.A_TO_B:

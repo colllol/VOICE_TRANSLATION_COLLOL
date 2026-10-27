@@ -1,6 +1,7 @@
 """Focused contract tests for the VT-013 translation pipeline boundary."""
 
 import pytest
+from threading import Event, Thread
 
 from backend.pipeline import (
     DuplicateSequenceError,
@@ -130,3 +131,68 @@ def test_input_session_and_payload_are_checked_at_pipeline_boundary():
 
     with pytest.raises(PipelineInputError, match="payload"):
         pipe.submit(chunk(Direction.A_TO_B, 0, b""))
+
+
+def test_provider_failure_keeps_chunk_available_for_explicit_retry(monkeypatch):
+    asr, nmt, tts = create_fake_providers()
+    original_transcribe = asr.transcribe
+    calls = 0
+
+    def fail_once(audio_bytes: bytes) -> str:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("temporary provider failure")
+        return original_transcribe(audio_bytes)
+
+    monkeypatch.setattr(asr, "transcribe", fail_once)
+    pipe = TranslationPipeline(
+        session_id=SESSION_ID,
+        source_lang="en",
+        target_lang="vi",
+        providers=(asr, nmt, tts),
+    )
+    pipe.submit(chunk(Direction.A_TO_B, 0))
+
+    with pytest.raises(RuntimeError, match="temporary provider failure"):
+        pipe.process_next(Direction.A_TO_B)
+
+    assert pipe.queue_depth(Direction.A_TO_B) == 1
+    output = pipe.process_next(Direction.A_TO_B)
+    assert output is not None
+    assert output.seq == 0
+    assert pipe.queue_depth(Direction.A_TO_B) == 0
+
+
+def test_cancel_during_provider_work_returns_cancellation_not_index_error(monkeypatch):
+    asr, nmt, tts = create_fake_providers()
+    entered_provider = Event()
+    finish_provider = Event()
+    original_transcribe = asr.transcribe
+
+    def blocked_transcribe(audio_bytes: bytes) -> str:
+        entered_provider.set()
+        assert finish_provider.wait(timeout=2)
+        return original_transcribe(audio_bytes)
+
+    monkeypatch.setattr(asr, "transcribe", blocked_transcribe)
+    pipe = TranslationPipeline(SESSION_ID, "en", "vi", (asr, nmt, tts))
+    pipe.submit(chunk(Direction.A_TO_B, 0))
+    outcome = []
+
+    def process() -> None:
+        try:
+            outcome.append(pipe.process_next(Direction.A_TO_B))
+        except Exception as exc:
+            outcome.append(exc)
+
+    worker = Thread(target=process)
+    worker.start()
+    assert entered_provider.wait(timeout=2)
+    pipe.cancel()
+    finish_provider.set()
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert len(outcome) == 1
+    assert isinstance(outcome[0], PipelineCancelledError)
