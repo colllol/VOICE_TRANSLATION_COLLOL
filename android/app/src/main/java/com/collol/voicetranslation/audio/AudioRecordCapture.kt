@@ -8,19 +8,43 @@ import android.os.SystemClock
 import com.collol.voicetranslation.service.CaptureResource
 import java.util.concurrent.atomic.AtomicBoolean
 
+interface AudioRecordPort {
+    val recordingState: Int
+    fun startRecording()
+    fun stop()
+    fun read(buffer: ByteArray, offset: Int, size: Int): Int
+    fun release()
+}
+
+private class PlatformAudioRecordPort(private val record: AudioRecord) : AudioRecordPort {
+    override val recordingState: Int
+        get() = record.recordingState
+
+    override fun startRecording() = record.startRecording()
+
+    override fun stop() = record.stop()
+
+    override fun read(buffer: ByteArray, offset: Int, size: Int): Int =
+        record.read(buffer, offset, size, AudioRecord.READ_BLOCKING)
+
+    override fun release() = record.release()
+}
+
 fun interface PcmChunkSink {
     fun onChunk(chunk: CapturedPcmChunk)
 }
 
 /** Blocking microphone reader. It owns AudioRecord and never writes audio to disk. */
 class AudioRecordCapture(
-    private val audioRecord: AudioRecord,
+    private val audioRecord: AudioRecordPort,
     private val format: PcmFormat = DEFAULT_FORMAT,
     private val monotonicNanos: () -> Long = SystemClock::elapsedRealtimeNanos,
     private val chunkSink: PcmChunkSink,
     private val onCaptureTerminated: () -> Unit = {},
 ) : CaptureResource {
     private val running = AtomicBoolean(false)
+    private val releaseRequested = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
     private val worker = Thread(::readLoop, "voice-translation-audio-capture")
     private val timestampTracker = PcmTimestampTracker(format)
     private val buffer = ByteArray(CHUNK_FRAMES * format.bytesPerFrame)
@@ -49,14 +73,15 @@ class AudioRecordCapture(
     }
 
     override fun release() {
+        releaseRequested.set(true)
         stop()
-        audioRecord.release()
+        if (!worker.isAlive) releaseAudioRecord()
     }
 
     private fun readLoop() {
         try {
             while (running.get()) {
-                val bytesRead = audioRecord.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                val bytesRead = audioRecord.read(buffer, 0, buffer.size)
                 val completedAtNanos = monotonicNanos()
                 if (bytesRead <= 0 || bytesRead % format.bytesPerFrame != 0) {
                     break
@@ -86,7 +111,12 @@ class AudioRecordCapture(
             }
         } finally {
             if (running.getAndSet(false)) onCaptureTerminated()
+            if (releaseRequested.get()) releaseAudioRecord()
         }
+    }
+
+    private fun releaseAudioRecord() {
+        if (released.compareAndSet(false, true)) audioRecord.release()
     }
 
     companion object {
@@ -110,7 +140,9 @@ class AudioRecordCapture(
             require(minimumBuffer > 0) { "AudioRecord minimum buffer size is invalid: $minimumBuffer" }
             val bufferSize = maxOf(minimumBuffer, CHUNK_FRAMES * format.bytesPerFrame * 2)
             return AudioRecordCapture(
-                audioRecord = audioRecordFactory(format.sampleRateHz, channelMask, encoding, bufferSize),
+                audioRecord = PlatformAudioRecordPort(
+                    audioRecordFactory(format.sampleRateHz, channelMask, encoding, bufferSize),
+                ),
                 format = format,
                 chunkSink = chunkSink,
                 onCaptureTerminated = onCaptureTerminated,
