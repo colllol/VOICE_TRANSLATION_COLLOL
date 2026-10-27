@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional
 
-from backend.providers.config import ASRConfig, NMTConfig, TTSConfig
+from backend.providers.config import (
+    ASRConfig,
+    AudioFormat,
+    NMTConfig,
+    StreamingCapability,
+    TTSConfig,
+)
 
 
 class ASRProvider(ABC):
@@ -13,6 +19,15 @@ class ASRProvider(ABC):
     def __init__(self, config: ASRConfig) -> None:
         config.validate()
         self.config = config
+
+    @property
+    def audio_format(self) -> Optional[AudioFormat]:
+        return self.config.audio_format
+
+    def require_audio_format(self) -> AudioFormat:
+        if self.audio_format is None:
+            raise ConfigError("audio format is not declared")
+        return self.audio_format
 
     @abstractmethod
     def transcribe(self, audio_bytes: bytes) -> str:
@@ -40,6 +55,15 @@ class TTSProvider(ABC):
         config.validate()
         self.config = config
 
+    @property
+    def audio_format(self) -> Optional[AudioFormat]:
+        return self.config.audio_format
+
+    def require_audio_format(self) -> AudioFormat:
+        if self.audio_format is None:
+            raise ConfigError("audio format is not declared")
+        return self.audio_format
+
     @abstractmethod
     def synthesize(self, text: str, target_lang: str) -> bytes:
         """Synthesize text to audio bytes. Format depends on provider."""
@@ -48,6 +72,13 @@ class TTSProvider(ABC):
     def streaming_declared(self) -> bool:
         """Metadata: provider declares streaming capability (not necessarily implemented)."""
         return self.config.streaming_declared
+
+    @property
+    def streaming_capability(self) -> StreamingCapability:
+        """Expose declaration without implying a streaming method exists."""
+        if self.config.streaming_declared:
+            return StreamingCapability.DECLARED_NOT_IMPLEMENTED
+        return StreamingCapability.NOT_DECLARED
 
 
 class ProviderError(Exception):

@@ -2,7 +2,14 @@
 from __future__ import annotations
 
 import pytest
-from backend.providers.config import ASRConfig, NMTConfig, TTSConfig
+from backend.providers.config import (
+    ASRConfig,
+    AudioFormat,
+    AudioSampleFormat,
+    NMTConfig,
+    StreamingCapability,
+    TTSConfig,
+)
 from backend.providers.fake import (
     FakeASRProvider,
     FakeNMTProvider,
@@ -155,6 +162,31 @@ class TestTTSConfig:
         )
         assert config.voice_id == "default"
 
+    def test_audio_format_requires_complete_pcm_metadata(self):
+        with pytest.raises(ValueError, match="sample rate must be positive"):
+            AudioFormat(
+                sample_rate_hz=0,
+                channels=1,
+                sample_format=AudioSampleFormat.PCM_S16LE,
+            )
+
+    def test_typed_audio_format_is_available_when_declared(self):
+        audio_format = AudioFormat(
+            sample_rate_hz=16000,
+            channels=1,
+            sample_format=AudioSampleFormat.PCM_S16LE,
+        )
+        config = TTSConfig(
+            name="typed-tts",
+            model_revision="v1",
+            license="reference-only",
+            corpus="reference-only",
+            streaming_declared=False,
+            audio_format=audio_format,
+        )
+        config.validate()
+        assert config.audio_format == audio_format
+
 
 class TestFakeASRProvider:
     """Test fake ASR provider implementation."""
@@ -188,6 +220,10 @@ class TestFakeASRProvider:
     def test_config_accessible(self):
         assert self.provider.config.name == "fake-asr"
         assert self.provider.config.streaming_declared is True
+
+    def test_opaque_fake_audio_fails_closed_when_pcm_format_is_required(self):
+        with pytest.raises(ConfigError, match="audio format is not declared"):
+            self.provider.require_audio_format()
 
 
 class TestFakeNMTProvider:
@@ -261,6 +297,14 @@ class TestFakeTTSProvider:
 
     def test_streaming_declared(self):
         assert self.provider.streaming_declared() is True
+
+    def test_declared_streaming_does_not_claim_a_streaming_api(self):
+        assert self.provider.streaming_capability is StreamingCapability.DECLARED_NOT_IMPLEMENTED
+        assert not hasattr(self.provider, "synthesize_stream")
+
+    def test_opaque_fake_audio_fails_closed_when_pcm_format_is_required(self):
+        with pytest.raises(ConfigError, match="audio format is not declared"):
+            self.provider.require_audio_format()
 
 
 class TestFakeProviderFactory:

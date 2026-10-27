@@ -2,7 +2,38 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
+
+
+class AudioSampleFormat(str, Enum):
+    """Concrete PCM encodings understood by the provider boundary."""
+
+    PCM_S16LE = "pcm_s16le"
+
+
+@dataclass(frozen=True)
+class AudioFormat:
+    """Complete PCM metadata; compressed/opaque provider formats need another contract."""
+
+    sample_rate_hz: int
+    channels: int
+    sample_format: AudioSampleFormat
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.sample_rate_hz, int) or self.sample_rate_hz <= 0:
+            raise ValueError("audio sample rate must be positive")
+        if not isinstance(self.channels, int) or self.channels <= 0:
+            raise ValueError("audio channel count must be positive")
+        if not isinstance(self.sample_format, AudioSampleFormat):
+            raise ValueError("audio sample format must be a supported AudioSampleFormat")
+
+
+class StreamingCapability(str, Enum):
+    """Declaration metadata, not a promise that the adapter exposes stream methods."""
+
+    NOT_DECLARED = "not_declared"
+    DECLARED_NOT_IMPLEMENTED = "declared_not_implemented"
 
 
 @dataclass(frozen=True)
@@ -31,7 +62,12 @@ class ProviderConfig:
 @dataclass(frozen=True)
 class ASRConfig(ProviderConfig):
     """Configuration for Automatic Speech Recognition provider."""
-    pass
+    audio_format: Optional[AudioFormat] = None
+
+    def validate(self) -> None:
+        super().validate()
+        if self.audio_format is not None and not isinstance(self.audio_format, AudioFormat):
+            raise ValueError("audio_format must be an AudioFormat or None")
 
 
 @dataclass(frozen=True)
@@ -49,8 +85,11 @@ class NMTConfig(ProviderConfig):
 class TTSConfig(ProviderConfig):
     """Configuration for Text-to-Speech provider."""
     voice_id: str = "default"
+    audio_format: Optional[AudioFormat] = None
 
     def validate(self) -> None:
         super().validate()
         if not self.voice_id or not self.voice_id.strip():
             raise ValueError("voice_id must be non-empty")
+        if self.audio_format is not None and not isinstance(self.audio_format, AudioFormat):
+            raise ValueError("audio_format must be an AudioFormat or None")
