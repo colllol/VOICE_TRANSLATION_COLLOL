@@ -14,6 +14,8 @@ Build a separate developer APK with `:app:assembleDeveloper`; its application ID
 
 The diagnostics panel reports the requested 16 kHz sample rate, PCM window count, normalized RMS/peak, dominant frequency, and per-stage elapsed time. PCM is analyzed in memory, not persisted. Diagnostics own the microphone only during model preparation; `SpeechRecognizer` starts only after the diagnostics reader thread stops and releases its `AudioRecord`, because Android audio services may reject two simultaneous microphone clients with `ERROR_CLIENT` (code 5). During ASR, the displayed RMS is derived from `RecognitionListener.onRmsChanged`. A single client-error retry is attempted after destroying the old recognizer.
 
+The Developer screen also provides an explicit **Chạy benchmark NMT** action. It downloads or verifies the ML Kit `vi->en` model, runs one warm-up translation, then translates ten fixed Vietnamese sentences sequentially and reports successful sample count, failures, min/median/mean/p95 latency, and model-ready/download time. These are measured on the device when the action is run; no benchmark result is checked into the repository. The benchmark measures ML Kit NMT only, not ASR, TTS, VoIP, or end-to-end latency.
+
 Transcript and translated text appear only in the developer screen. Android TextToSpeech must have an enabled system TTS engine and a Vietnamese-to-English-capable voice on the device; the harness reports a clear error when the ROM has no usable engine. Developer APK is a one-device, one-way test harness: it does not capture another app's call audio or inject translated audio into a call, and does not establish speaker preservation or the sub-second latency target.
 
 Verify both variants:

@@ -65,6 +65,12 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
     private var utteranceGeneration = 0L
     private var diagnosticsReleasePending = false
     private var deferredStartRequested = false
+    private var benchmarkRunning by mutableStateOf(false)
+    private var benchmarkStatus by mutableStateOf("Chưa chạy")
+    private var benchmarkSummary by mutableStateOf<ModelBenchmarkSummary?>(null)
+    private var benchmarkDownloadMillis by mutableStateOf<Long?>(null)
+    private var benchmarkClient: Translator? = null
+    private var benchmarkGeneration = 0L
 
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -83,6 +89,9 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
 
     override fun onDestroy() {
         stopLab()
+        benchmarkGeneration++
+        benchmarkClient?.close()
+        benchmarkClient = null
         translator?.close()
         textToSpeech?.shutdown()
         super.onDestroy()
@@ -299,6 +308,89 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         startRecognition(runGeneration, ++utteranceGeneration)
     }
 
+    private fun startModelBenchmark() {
+        if (running || benchmarkRunning) return
+        benchmarkRunning = true
+        benchmarkStatus = "Đang tải model..."
+        benchmarkSummary = null
+        benchmarkDownloadMillis = null
+        val generation = ++benchmarkGeneration
+        val client = Translation.getClient(
+            TranslatorOptions.Builder()
+                .setSourceLanguage(SOURCE_LANGUAGE)
+                .setTargetLanguage(TARGET_LANGUAGE)
+                .build(),
+        )
+        benchmarkClient = client
+        val downloadStartedAt = SystemClock.elapsedRealtime()
+        client.downloadModelIfNeeded(DownloadConditions.Builder().build())
+            .addOnSuccessListener {
+                if (!isCurrentBenchmark(generation)) return@addOnSuccessListener
+                benchmarkDownloadMillis = SystemClock.elapsedRealtime() - downloadStartedAt
+                runBenchmarkTranslation(client, generation, phraseIndex = -1, mutableListOf(), failedCount = 0)
+            }
+            .addOnFailureListener { cause ->
+                if (isCurrentBenchmark(generation)) finishBenchmark(generation, "Tải model thất bại: ${cause.message}")
+            }
+    }
+
+    private fun runBenchmarkTranslation(
+        client: Translator,
+        generation: Long,
+        phraseIndex: Int,
+        samples: MutableList<Long>,
+        failedCount: Int,
+    ) {
+        if (!isCurrentBenchmark(generation)) return
+        if (phraseIndex >= BENCHMARK_PHRASES.size) {
+            benchmarkSummary = ModelBenchmarkStats.summarize(samples, failedCount)
+            finishBenchmark(
+                generation,
+                "Hoàn tất: ${samples.size}/${BENCHMARK_PHRASES.size} mẫu thành công, lỗi=$failedCount",
+            )
+            return
+        }
+
+        val warmup = phraseIndex < 0
+        benchmarkStatus = if (warmup) "Đang warm-up..." else "Đang đo ${phraseIndex + 1}/${BENCHMARK_PHRASES.size}..."
+        val phrase = if (warmup) BENCHMARK_PHRASES.first() else BENCHMARK_PHRASES[phraseIndex]
+        val startedAt = SystemClock.elapsedRealtime()
+        client.translate(phrase)
+            .addOnSuccessListener {
+                if (!isCurrentBenchmark(generation)) return@addOnSuccessListener
+                if (!warmup) samples.add(SystemClock.elapsedRealtime() - startedAt)
+                runBenchmarkTranslation(client, generation, phraseIndex + 1, samples, failedCount)
+            }
+            .addOnFailureListener {
+                if (!isCurrentBenchmark(generation)) return@addOnFailureListener
+                if (warmup) {
+                    finishBenchmark(generation, "Warm-up thất bại; không có kết quả benchmark")
+                } else {
+                    runBenchmarkTranslation(client, generation, phraseIndex + 1, samples, failedCount + 1)
+                }
+            }
+    }
+
+    private fun cancelModelBenchmark() {
+        if (!benchmarkRunning) return
+        benchmarkGeneration++
+        benchmarkRunning = false
+        benchmarkClient?.close()
+        benchmarkClient = null
+        benchmarkStatus = "Đã hủy"
+    }
+
+    private fun isCurrentBenchmark(generation: Long): Boolean =
+        benchmarkRunning && generation == benchmarkGeneration
+
+    private fun finishBenchmark(generation: Long, message: String) {
+        if (generation != benchmarkGeneration) return
+        benchmarkStatus = message
+        benchmarkRunning = false
+        benchmarkClient?.close()
+        benchmarkClient = null
+    }
+
     private fun stopLab() {
         if (!running && diagnostics == null) return
         runGeneration++
@@ -381,11 +473,25 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
             Text("Chỉ thu giọng nói trực tiếp từ microphone, không thu/chèn audio cuộc gọi. PCM không lưu. Dùng on-device ASR nếu có; system recognizer có thể xử lý audio qua dịch vụ bên ngoài. Transcript chỉ hiện trong màn hình test.", style = MaterialTheme.typography.bodySmall)
             Text("Trạng thái: $status")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = ::toggleLab) { Text(if (running) "Dừng test" else "Bắt đầu test") }
+                Button(onClick = ::toggleLab, enabled = !benchmarkRunning) { Text(if (running) "Dừng test" else "Bắt đầu test") }
                 if (running && !isListening && transcript.isNotBlank() && translation.isNotBlank() && status.startsWith("Hoàn tất")) {
                     OutlinedButton(onClick = ::startNextUtterance) { Text("Nói câu khác") }
                 }
                 OutlinedButton(onClick = { finish() }) { Text("Đóng") }
+            }
+            HorizontalDivider()
+            Text("Model benchmark (ML Kit vi→en)", style = MaterialTheme.typography.titleMedium)
+            Text("Đo NMT thật trên ${BENCHMARK_PHRASES.size} câu cố định; một warm-up không tính vào thống kê. Không đo ASR, TTS hoặc end-to-end.", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = ::startModelBenchmark, enabled = !running && !benchmarkRunning) {
+                    Text(if (benchmarkRunning) "Đang đo..." else "Chạy benchmark NMT")
+                }
+                if (benchmarkRunning) OutlinedButton(onClick = ::cancelModelBenchmark) { Text("Hủy benchmark") }
+            }
+            Text("Benchmark: $benchmarkStatus")
+            benchmarkDownloadMillis?.let { Text("Model ready/download: $it ms") }
+            benchmarkSummary?.let { summary ->
+                Text("N=${summary.sampleCount}, lỗi=${summary.failedCount}; min=${summary.minMillis} ms, median=${"%.1f".format(Locale.US, summary.medianMillis)} ms, mean=${"%.1f".format(Locale.US, summary.meanMillis)} ms, p95=${summary.p95Millis} ms")
             }
             HorizontalDivider()
             Text("Audio diagnostics", style = MaterialTheme.typography.titleMedium)
@@ -407,5 +513,17 @@ class DeveloperVoiceLabActivity : ComponentActivity() {
         private val TARGET_LOCALE = Locale.US
         private const val ASR_RETRY_DELAY_MILLIS = 250L
         private const val MICROPHONE_RELEASE_DELAY_MILLIS = 350L
+        private val BENCHMARK_PHRASES = listOf(
+            "Xin chào, bạn khỏe không?",
+            "Tôi muốn đặt một chuyến đi đến sân bay.",
+            "Cuộc họp sẽ bắt đầu lúc chín giờ sáng mai.",
+            "Bạn có thể gửi cho tôi địa chỉ của nhà hàng không?",
+            "Tôi cần thêm một chút thời gian để suy nghĩ.",
+            "Thời tiết hôm nay rất đẹp và dễ chịu.",
+            "Chúng ta có thể trao đổi về kế hoạch tiếp theo không?",
+            "Tôi sẽ gọi lại cho bạn sau khi cuộc họp kết thúc.",
+            "Vui lòng cho tôi biết chuyến tàu khởi hành lúc nào.",
+            "Cảm ơn bạn đã giúp đỡ tôi trong ngày hôm nay.",
+        )
     }
 }
