@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import com.collol.voicetranslation.service.CaptureUiStatus
+import com.collol.voicetranslation.service.CaptureUiStatusStore
+import com.collol.voicetranslation.service.MicrophoneCaptureCommands
 
 private data class LaunchableApp(
     val label: String,
@@ -32,25 +35,52 @@ private data class LaunchableApp(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { SetupScreen { finish() } } }
+        setContent { MaterialTheme { SetupScreen(onClose = { finish() }) } }
     }
 }
 
 @Composable
 private fun SetupScreen(onClose: () -> Unit) {
     val context = LocalContext.current
+    val activity = context as ComponentActivity
     val packageManager = context.packageManager
     val preferences = remember(context) {
         context.getSharedPreferences("voice_translation_setup", Context.MODE_PRIVATE)
     }
     var appRefresh by rememberSaveable { mutableIntStateOf(0) }
+    var captureStatus by remember { mutableStateOf(CaptureUiStatusStore.read(context)) }
     val launchableApps = remember(packageManager, appRefresh) { loadLaunchableApps(packageManager) }
-    DisposableEffect(context) {
+    DisposableEffect(activity) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) appRefresh++
+            if (event == Lifecycle.Event.ON_RESUME) {
+                appRefresh++
+                captureStatus = if (MicrophoneCaptureCommands.isServiceActive()) {
+                    CaptureUiStatusStore.read(context).let { stored ->
+                        if (stored == CaptureUiStatus.CAPTURING) stored else CaptureUiStatus.STARTING
+                    }
+                } else {
+                    CaptureUiStatusStore.read(context).let { stored ->
+                        if (stored == CaptureUiStatus.STARTING || stored == CaptureUiStatus.CAPTURING) CaptureUiStatus.IDLE else stored
+                    }
+                }
+            }
         }
-        (context as ComponentActivity).lifecycle.addObserver(observer)
-        onDispose { (context as ComponentActivity).lifecycle.removeObserver(observer) }
+        activity.lifecycle.addObserver(observer)
+        onDispose { activity.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(captureStatus) {
+        if (captureStatus == CaptureUiStatus.STARTING) {
+            repeat(20) {
+                kotlinx.coroutines.delay(250)
+                val stored = CaptureUiStatusStore.read(context)
+                captureStatus = when {
+                    stored != CaptureUiStatus.STARTING -> stored
+                    else -> CaptureUiStatus.STARTING
+                }
+                if (captureStatus != CaptureUiStatus.STARTING) return@LaunchedEffect
+            }
+            if (captureStatus == CaptureUiStatus.STARTING) captureStatus = CaptureUiStatus.IDLE
+        }
     }
     val languages = listOf("Tiếng Việt", "English", "中文", "日本語", "한국어", "Français")
     var languageA by remember { mutableStateOf(preferences.getString("language_a", languages[0]) ?: languages[0]) }
@@ -110,6 +140,37 @@ private fun SetupScreen(onClose: () -> Unit) {
             Text("Ứng dụng đã chọn: ${selectedApp?.label ?: "chưa chọn"}", style = MaterialTheme.typography.titleSmall)
             Text("Theo dõi cuộc gọi nền: chưa tích hợp", style = MaterialTheme.typography.titleMedium)
             Text("Chọn ứng dụng chỉ lưu mục tiêu cấu hình và mở ứng dụng đó. Android không tự cho phép app này đọc hoặc chèn audio vào mọi ứng dụng gọi điện.")
+            Text("Micro của thiết bị", style = MaterialTheme.typography.titleMedium)
+            Text("Chỉ thu âm từ micro khi bạn chủ động bật. Âm thanh không được lưu và không được gửi đi; thao tác này không thu hoặc chèn tiếng gọi VoIP.", style = MaterialTheme.typography.bodySmall)
+            val isCapturing = captureStatus == CaptureUiStatus.CAPTURING
+            Text(
+                when (captureStatus) {
+                    CaptureUiStatus.IDLE -> "Micro đang tắt"
+                    CaptureUiStatus.STARTING -> "Đang khởi động micro..."
+                    CaptureUiStatus.CAPTURING -> "Micro đang bật trên thiết bị này"
+                    CaptureUiStatus.PERMISSION_DENIED -> "Quyền micro chưa được cấp. Hãy cho phép để bắt đầu."
+                    CaptureUiStatus.FAILED -> "Không thể bắt đầu thu âm. Micro đã được tắt."
+                },
+                color = if (captureStatus == CaptureUiStatus.FAILED || captureStatus == CaptureUiStatus.PERMISSION_DENIED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+            if (isCapturing) {
+                OutlinedButton(
+                    onClick = {
+                        MicrophoneCaptureCommands.stop(context)
+                        captureStatus = CaptureUiStatus.IDLE
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Tắt micro") }
+            } else {
+                Button(
+                    onClick = {
+                        captureStatus = CaptureUiStatus.STARTING
+                        MicrophoneCaptureCommands.requestStart(activity)
+                    },
+                    enabled = captureStatus != CaptureUiStatus.STARTING,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Bật micro trên thiết bị này") }
+            }
             Button(
                 onClick = { checked = true },
                 enabled = selectedApp != null && languageA != languageB,

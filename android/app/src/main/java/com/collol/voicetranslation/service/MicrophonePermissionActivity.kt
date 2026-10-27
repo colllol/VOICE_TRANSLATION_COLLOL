@@ -15,13 +15,19 @@ class MicrophonePermissionActivity : ComponentActivity() {
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) startCaptureService()
+        if (granted) {
+            CaptureUiStatusStore.write(this, CaptureUiStatus.STARTING)
+            startCaptureService()
+        } else {
+            CaptureUiStatusStore.write(this, CaptureUiStatus.PERMISSION_DENIED)
+        }
         finish()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (hasMicrophonePermission()) {
+            CaptureUiStatusStore.write(this, CaptureUiStatus.STARTING)
             startCaptureService()
             finish()
         } else {
@@ -44,6 +50,8 @@ class MicrophonePermissionActivity : ComponentActivity() {
 
 /** Explicit commands for the app-owned UI; no other application can invoke the service. */
 object MicrophoneCaptureCommands {
+    fun isServiceActive(): Boolean = MicrophoneCaptureService.active
+
     fun requestStart(activity: Activity) {
         activity.startActivity(Intent(activity, MicrophonePermissionActivity::class.java))
     }
