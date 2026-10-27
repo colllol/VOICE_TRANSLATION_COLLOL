@@ -157,13 +157,21 @@ class TranslationPipeline:
                 return None
             inbound = queue[0]
         source_lang, target_lang = self._languages(direction)
-        transcript = self._providers.asr.transcribe(inbound.payload)
-        translated_text = self._providers.nmt.translate(
-            transcript,
-            source_lang,
-            target_lang,
-        )
-        output_audio = self._providers.tts.synthesize(translated_text, target_lang)
+        try:
+            transcript = self._providers.asr.transcribe(inbound.payload)
+            translated_text = self._providers.nmt.translate(
+                transcript,
+                source_lang,
+                target_lang,
+            )
+            output_audio = self._providers.tts.synthesize(translated_text, target_lang)
+        except Exception as cause:
+            with self._state_lock:
+                if self.cancelled:
+                    raise PipelineCancelledError(
+                        "pipeline was cancelled during provider work"
+                    ) from cause
+            raise
 
         with self._state_lock:
             if self.cancelled:

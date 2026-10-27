@@ -196,3 +196,36 @@ def test_cancel_during_provider_work_returns_cancellation_not_index_error(monkey
     assert not worker.is_alive()
     assert len(outcome) == 1
     assert isinstance(outcome[0], PipelineCancelledError)
+
+
+def test_cancel_during_provider_failure_takes_precedence(monkeypatch):
+    asr, nmt, tts = create_fake_providers()
+    entered_provider = Event()
+    finish_provider = Event()
+
+    def failing_transcribe(_audio_bytes: bytes) -> str:
+        entered_provider.set()
+        assert finish_provider.wait(timeout=2)
+        raise RuntimeError("provider failed after cancel")
+
+    monkeypatch.setattr(asr, "transcribe", failing_transcribe)
+    pipe = TranslationPipeline(SESSION_ID, "en", "vi", (asr, nmt, tts))
+    pipe.submit(chunk(Direction.A_TO_B, 0))
+    outcome = []
+
+    def process() -> None:
+        try:
+            pipe.process_next(Direction.A_TO_B)
+        except Exception as exc:
+            outcome.append(exc)
+
+    worker = Thread(target=process)
+    worker.start()
+    assert entered_provider.wait(timeout=2)
+    pipe.cancel()
+    finish_provider.set()
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert len(outcome) == 1
+    assert isinstance(outcome[0], PipelineCancelledError)
