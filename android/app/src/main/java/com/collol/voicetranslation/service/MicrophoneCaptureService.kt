@@ -56,12 +56,17 @@ class MicrophoneCaptureService : Service() {
             }
             when (captureController?.start()) {
                 is CaptureStartResult.Started -> Unit
-                else -> stopCapture()
+                else -> {
+                    stopCapture()
+                    stopSelfResult(startId)
+                }
             }
         } catch (_: SecurityException) {
             stopCapture()
+            stopSelfResult(startId)
         } catch (_: RuntimeException) {
             stopCapture()
+            stopSelfResult(startId)
         }
         return START_NOT_STICKY
     }
