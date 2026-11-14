@@ -10,6 +10,16 @@ This tree is the replacement architecture for `dev-computer`: a Python service a
 
 The server never exposes ASR or NMT text on the audio transport. The first implementation uses deterministic fake providers and local collectors. Controlled VoIP source/sink adapters are a separate gate; speaker playback is not evidence of outbound call-track injection.
 
+## Run the local slice
+
+```text
+python -m uvicorn computer.server.app:app --host 127.0.0.1 --port 8765
+```
+
+The current pipeline is a deterministic opaque-frame transform used to prove
+session, sequencing, cancellation, and duplex routing. It is not real ASR,
+NMT, TTS, VoIP injection, or a latency result.
+
 ## Development order
 
 1. Versioned JSON control contract and binary audio frame contract.

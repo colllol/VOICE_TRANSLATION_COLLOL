@@ -1,13 +1,13 @@
 """Local WebSocket application for the replacement computer server."""
 from __future__ import annotations
 
-import base64
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from computer.server.contract import AudioFormat, AudioInput, ContractError
 from computer.server.coordinator import SessionCoordinator, SessionState
+from computer.server.pipeline import DuplexPipeline
 
 
 AUDIO = AudioFormat(16000, 1, "pcm_s16le", 20)
@@ -25,6 +25,7 @@ def _error(code: str, detail: str, request_id: str | None = None) -> dict[str, A
 def create_app() -> FastAPI:
     app = FastAPI(title="Voice Translation Computer Server")
     coordinator = SessionCoordinator()
+    pipelines: dict[str, DuplexPipeline] = {}
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
                         payload.get("source_lang", ""), payload.get("target_lang", "")
                     )
                     owned_session_id = session.session_id
+                    pipelines[session.session_id] = DuplexPipeline(AUDIO)
                     await ws.send_json({
                         "v": 1,
                         "type": "session.started",
@@ -72,25 +74,26 @@ def create_app() -> FastAPI:
 
                 if message_type == "session.cancel":
                     coordinator.cancel(owned_session_id)
+                    pipelines[owned_session_id].cancel()
                     await ws.send_json({"v": 1, "type": "session.cancelled", "message_id": message_id, "session_id": owned_session_id, "payload": {}})
                 elif message_type == "audio.input":
                     if session.state is not SessionState.ACTIVE:
                         await ws.send_json(_error("session_not_active", "session is not active", message_id))
                         continue
                     frame = AudioInput.from_payload(payload, AUDIO)
-                    output = bytes((byte ^ 0xA5) for byte in frame.data)
+                    output = pipelines[owned_session_id].process(frame)
                     await ws.send_json({
                         "v": 1,
                         "type": "audio.output",
                         "message_id": message_id,
                         "session_id": owned_session_id,
                         "payload": {
-                            "stream_id": frame.stream_id,
-                            "input_seq_start": frame.seq,
-                            "input_seq_end": frame.seq,
-                            "output_seq": frame.seq,
-                            "duration_ms": frame.duration_ms,
-                            "data_b64": base64.b64encode(output).decode("ascii"),
+                            "stream_id": output.stream_id,
+                            "input_seq_start": output.input_seq_start,
+                            "input_seq_end": output.input_seq_end,
+                            "output_seq": output.output_seq,
+                            "duration_ms": output.duration_ms,
+                            "data_b64": output.data_b64,
                         },
                     })
                 else:
@@ -100,6 +103,8 @@ def create_app() -> FastAPI:
                 coordinator.disconnect(owned_session_id)
         except (ContractError, ValueError) as exc:
             await ws.send_json(_error("invalid_message", str(exc)))
+        except Exception as exc:
+            await ws.send_json(_error("pipeline_error", str(exc)))
 
     return app
 
