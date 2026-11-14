@@ -9,6 +9,7 @@ from computer.server.contract import AudioFormat, AudioInput, ContractError
 from computer.server.coordinator import SessionCoordinator, SessionState
 from computer.server.pipeline import DuplexPipeline
 from computer.server.providers import FakeTranslationProvider
+from computer.server.storage import SQLiteStore
 
 
 AUDIO = AudioFormat(16000, 1, "pcm_s16le", 20)
@@ -23,11 +24,12 @@ def _error(code: str, detail: str, request_id: str | None = None) -> dict[str, A
     }
 
 
-def create_app() -> FastAPI:
+def create_app(database_path: str = "computer-data.db") -> FastAPI:
     app = FastAPI(title="Voice Translation Computer Server")
     coordinator = SessionCoordinator()
     pipelines: dict[str, DuplexPipeline] = {}
     providers: dict[str, FakeTranslationProvider] = {}
+    store = SQLiteStore(database_path)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -52,6 +54,9 @@ def create_app() -> FastAPI:
                         payload.get("source_lang", ""), payload.get("target_lang", "")
                     )
                     owned_session_id = session.session_id
+                    store.record_session(
+                        session.session_id, session.source_lang, session.target_lang, "active"
+                    )
                     pipelines[session.session_id] = DuplexPipeline(AUDIO)
                     providers[session.session_id] = FakeTranslationProvider()
                     await ws.send_json({
@@ -78,6 +83,10 @@ def create_app() -> FastAPI:
                 if message_type == "session.cancel":
                     coordinator.cancel(owned_session_id)
                     pipelines[owned_session_id].cancel()
+                    session = coordinator.get(owned_session_id)
+                    store.record_session(
+                        session.session_id, session.source_lang, session.target_lang, session.state.value
+                    )
                     await ws.send_json({"v": 1, "type": "session.cancelled", "message_id": message_id, "session_id": owned_session_id, "payload": {}})
                 elif message_type == "audio.input":
                     if session.state is not SessionState.ACTIVE:
