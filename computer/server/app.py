@@ -1,0 +1,107 @@
+"""Local WebSocket application for the replacement computer server."""
+from __future__ import annotations
+
+import base64
+from typing import Any
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
+from computer.server.contract import AudioFormat, AudioInput, ContractError
+from computer.server.coordinator import SessionCoordinator, SessionState
+
+
+AUDIO = AudioFormat(16000, 1, "pcm_s16le", 20)
+
+
+def _error(code: str, detail: str, request_id: str | None = None) -> dict[str, Any]:
+    return {
+        "v": 1,
+        "type": "error",
+        "message_id": request_id or "server-error",
+        "payload": {"code": code, "detail": detail},
+    }
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Voice Translation Computer Server")
+    coordinator = SessionCoordinator()
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok", "service": "voice-translation-computer"}
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(ws: WebSocket) -> None:
+        await ws.accept()
+        owned_session_id: str | None = None
+        try:
+            while True:
+                message = await ws.receive_json()
+                message_id = message.get("message_id")
+                message_type = message.get("type")
+                payload = message.get("payload")
+                if message.get("v") != 1 or not isinstance(payload, dict):
+                    await ws.send_json(_error("invalid_message", "invalid envelope", message_id))
+                    continue
+
+                if message_type == "session.start":
+                    session = coordinator.start(
+                        payload.get("source_lang", ""), payload.get("target_lang", "")
+                    )
+                    owned_session_id = session.session_id
+                    await ws.send_json({
+                        "v": 1,
+                        "type": "session.started",
+                        "message_id": message_id,
+                        "session_id": session.session_id,
+                        "payload": {
+                            "audio": {
+                                "sample_rate_hz": AUDIO.sample_rate_hz,
+                                "channels": AUDIO.channels,
+                                "encoding": AUDIO.encoding,
+                                "frame_duration_ms": AUDIO.frame_duration_ms,
+                            }
+                        },
+                    })
+                    continue
+
+                if not owned_session_id or message.get("session_id") != owned_session_id:
+                    await ws.send_json(_error("session_not_active", "session is not owned by this connection", message_id))
+                    continue
+                session = coordinator.get(owned_session_id)
+
+                if message_type == "session.cancel":
+                    coordinator.cancel(owned_session_id)
+                    await ws.send_json({"v": 1, "type": "session.cancelled", "message_id": message_id, "session_id": owned_session_id, "payload": {}})
+                elif message_type == "audio.input":
+                    if session.state is not SessionState.ACTIVE:
+                        await ws.send_json(_error("session_not_active", "session is not active", message_id))
+                        continue
+                    frame = AudioInput.from_payload(payload, AUDIO)
+                    output = bytes((byte ^ 0xA5) for byte in frame.data)
+                    await ws.send_json({
+                        "v": 1,
+                        "type": "audio.output",
+                        "message_id": message_id,
+                        "session_id": owned_session_id,
+                        "payload": {
+                            "stream_id": frame.stream_id,
+                            "input_seq_start": frame.seq,
+                            "input_seq_end": frame.seq,
+                            "output_seq": frame.seq,
+                            "duration_ms": frame.duration_ms,
+                            "data_b64": base64.b64encode(output).decode("ascii"),
+                        },
+                    })
+                else:
+                    await ws.send_json(_error("invalid_message", "unsupported command", message_id))
+        except WebSocketDisconnect:
+            if owned_session_id:
+                coordinator.disconnect(owned_session_id)
+        except (ContractError, ValueError) as exc:
+            await ws.send_json(_error("invalid_message", str(exc)))
+
+    return app
+
+
+app = create_app()
