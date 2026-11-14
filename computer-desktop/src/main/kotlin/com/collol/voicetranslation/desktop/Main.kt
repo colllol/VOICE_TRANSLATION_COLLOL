@@ -15,6 +15,8 @@ import androidx.compose.ui.window.application
 
 fun main() = application {
     var running by remember { mutableStateOf(false) }
+    var backendReady by remember { mutableStateOf(false) }
+    val backend = remember { BackendClient() }
     Window(onCloseRequest = ::exitApplication, title = "Voice Translation — Operator") {
         MaterialTheme {
             Column(
@@ -22,8 +24,12 @@ fun main() = application {
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text("Voice Translation", style = MaterialTheme.typography.headlineMedium)
-                Text(if (running) "Backend session: active" else "Backend session: stopped")
-                Button(onClick = { running = !running }) {
+                Text(if (backendReady) "Backend: ready" else "Backend: unavailable")
+                Button(onClick = { backendReady = backend.health() }) {
+                    Text("Check backend")
+                }
+                Text(if (running) "Session: active" else "Session: stopped")
+                Button(onClick = { if (backendReady) running = !running }) {
                     Text(if (running) "Stop session" else "Start session")
                 }
                 Text("Controlled A-side operator console. VoIP media integration is not enabled in this slice.")

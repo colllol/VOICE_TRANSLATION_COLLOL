@@ -8,6 +8,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from computer.server.contract import AudioFormat, AudioInput, ContractError
 from computer.server.coordinator import SessionCoordinator, SessionState
 from computer.server.pipeline import DuplexPipeline
+from computer.server.providers import FakeTranslationProvider
 
 
 AUDIO = AudioFormat(16000, 1, "pcm_s16le", 20)
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Voice Translation Computer Server")
     coordinator = SessionCoordinator()
     pipelines: dict[str, DuplexPipeline] = {}
+    providers: dict[str, FakeTranslationProvider] = {}
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -51,6 +53,7 @@ def create_app() -> FastAPI:
                     )
                     owned_session_id = session.session_id
                     pipelines[session.session_id] = DuplexPipeline(AUDIO)
+                    providers[session.session_id] = FakeTranslationProvider()
                     await ws.send_json({
                         "v": 1,
                         "type": "session.started",
@@ -81,7 +84,18 @@ def create_app() -> FastAPI:
                         await ws.send_json(_error("session_not_active", "session is not active", message_id))
                         continue
                     frame = AudioInput.from_payload(payload, AUDIO)
-                    output = pipelines[owned_session_id].process(frame)
+                    translated = providers[owned_session_id].translate(
+                        frame.data, session.source_lang, session.target_lang
+                    )
+                    output = pipelines[owned_session_id].process(
+                        AudioInput(
+                            frame.stream_id,
+                            frame.seq,
+                            frame.capture_time_ms,
+                            frame.duration_ms,
+                            translated.audio[: AUDIO.frame_bytes].ljust(AUDIO.frame_bytes, b"\0"),
+                        )
+                    )
                     await ws.send_json({
                         "v": 1,
                         "type": "audio.output",
