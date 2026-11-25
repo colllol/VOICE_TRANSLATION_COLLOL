@@ -4,9 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -14,9 +15,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -30,6 +33,21 @@ fun main() {
     val port = System.getenv("VOICE_TRANSLATION_PORT")?.toIntOrNull()?.takeIf { it in 1..65535 } ?: 8765
     val backend = BackendClient("http://127.0.0.1:$port")
     BackendSupervisor.packaged(backend).use { supervisor -> runOperator(backend, supervisor) }
+}
+
+/** Window size that fits the real screen (which may be 1366x768), in dp. */
+private fun fitSize(): DpSize {
+    val config = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+        .defaultScreenDevice.defaultConfiguration
+    val scale = config.defaultTransform.scaleX.toFloat().takeIf { it > 0f } ?: 1f
+    // maximumWindowBounds already excludes the taskbar and any docked appbars.
+    val usable = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
+    val availableWidth = usable.width
+    val availableHeight = usable.height
+    return DpSize(
+        (availableWidth * 0.94f / scale).dp.coerceAtLeast(640.dp),
+        (availableHeight * 0.94f / scale).dp.coerceAtLeast(480.dp),
+    )
 }
 
 private fun runOperator(backend: BackendClient, backendSupervisor: BackendSupervisor) = application {
@@ -177,13 +195,22 @@ private fun runOperator(backend: BackendClient, backendSupervisor: BackendSuperv
         trace("format: 16000 Hz mono pcm_s16le, 20 ms frames (640 B)")
         connectBackend()
     }
-    Window(onCloseRequest = {
-        speakerTest?.cancel()
-        if (!busy) stop(exit = true)
-    }, title = "Voice Translation — Operator") {
+    val pageScroll = rememberScrollState()
+    val traceScroll = rememberScrollState()
+    // Keep the newest measurement in view as the pipeline trace grows.
+    LaunchedEffect(traceLines.size) { traceScroll.scrollTo(Int.MAX_VALUE) }
+
+    Window(
+        onCloseRequest = {
+            speakerTest?.cancel()
+            if (!busy) stop(exit = true)
+        },
+        title = "Voice Translation — Operator",
+        state = rememberWindowState(size = fitSize()),
+    ) {
         MaterialTheme {
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier.fillMaxSize().verticalScroll(pageScroll).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text("Voice Translation", style = MaterialTheme.typography.headlineMedium)
@@ -212,6 +239,12 @@ private fun runOperator(backend: BackendClient, backendSupervisor: BackendSuperv
                     }) { Text("Swap and save languages") }
                 }
                 Text(status)
+                // Always-visible last event, so the flow is readable without scrolling.
+                Text(
+                    traceLines.lastOrNull() ?: "no audio event recorded yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
                 Button(enabled = !busy && voiceTest == null && (backendReady || session != null), onClick = {
                     val pair = settings
                     if (session != null) stop() else if (pair != null) {
@@ -256,13 +289,16 @@ private fun runOperator(backend: BackendClient, backendSupervisor: BackendSuperv
                 }
 
                 Text("Audio pipeline", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    if (traceLines.isEmpty()) "waiting for the first measurement…" else traceLines.joinToString("\n"),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp)
-                        .verticalScroll(rememberScrollState()),
-                )
+                SelectionContainer {
+                    Text(
+                        if (traceLines.isEmpty()) "waiting for the first measurement…"
+                        else traceLines.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.fillMaxWidth().height(260.dp)
+                            .verticalScroll(traceScroll),
+                    )
+                }
             }
         }
     }
