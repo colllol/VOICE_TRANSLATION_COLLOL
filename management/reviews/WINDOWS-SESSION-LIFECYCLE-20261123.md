@@ -1,0 +1,13 @@
+# Windows session lifecycle checkpoint
+
+Branch `dev-computer`; changes are in the working tree. Vault not available; checkpoint not synced.
+
+The WebSocket regression reproduced `utterance.output` arriving before `session.cancelled` for an in-flight request. The transport now reads control messages during translation, drops pending results on cancellation or disconnect, and retires the session on translation timeout. Azure checks cancellation between provider stages; it cannot recall a request already sent. Desktop voice-test stop closes the session and waits for the audio job to finish before re-enabling start. The Azure voice test discloses remote processing before capture and only exposes controls for Vietnamese/English.
+
+Verified locally: `pytest computer/server research/audio_route` reported 84 passed; Gradle `test` and the isolated `fake` desktop smoke passed. This is software-level evidence, not physical mic/speaker, live Azure, installer upgrade, or A/B SIP acceptance. The previously built 0.2.3 artifact predates these changes; see the installer checkpoint for the verified extracted GUI startup.
+
+Follow-up to `deleg_ad04541b`: cancellation now signals the provider before writing SQLite, and release runs even if persistence fails. When receive and translation finish together, disconnect and cancellation of the owned session take priority; otherwise the completed result goes out first. Regression coverage releases the old provider and verifies PCM from the replacement session on the same connection. A process-wide limit of four submitted translations (one transport in the Windows backend) counts a cancelled waiter until its actual worker finishes; saturation returns `provider_busy`. An in-flight synchronous Azure request is still not forcibly interrupted. Backend suite: 71 passed; Gradle tests and isolated fake desktop smoke passed. A new installer is still open.
+
+Independent follow-up `deleg_400a9939` passed 8 focused tests and all 71 backend tests. The reviewer flagged that cancellation can discard a result that has completed. This is intentional when cancellation and a still-unsent result are both ready. Sending the audio first would allow playback after Stop. The client still needs to discard buffered audio from the retired session because the server cannot recall an already-sent message.
+
+VT-005 remains open: connect the Baresip media bridge to the session backend and demonstrate a real call with an independent SIP peer, including simultaneous speech, fail-closed behavior, stop/reconnect, and measured latency and voice preservation. Do not infer device acceptance from synthetic PCM.
