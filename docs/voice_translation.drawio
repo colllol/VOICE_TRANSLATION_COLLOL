@@ -1,0 +1,379 @@
+<mxfile host="app.diagrams.net" agent="Codex" pages="4">
+  <diagram name="01 - Hoạt động một chiều" id="activity-one-way">
+    <mxGraphModel dx="2263" dy="1245" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#163B4A" value="Voice Translation — sơ đồ hoạt động một chiều" vertex="1">
+          <mxGeometry height="40" width="720" x="40" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;align=left;spacing=12" value="Chỉ người dùng A cài đặt và thao tác công cụ. Người B không cài app, không xác nhận, không điều khiển dịch." vertex="1">
+          <mxGeometry height="55" width="1000" x="40" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" value="Người dùng A&#xa;(đã cài app)" vertex="1">
+          <mxGeometry height="80" width="150" x="40" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6" value="Ứng dụng gọi điện&#xa;đang được theo dõi" vertex="1">
+          <mxGeometry height="80" width="170" x="270" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="b" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1" value="Người B&#xa;(không cài app)" vertex="1">
+          <mxGeometry height="80" width="150" x="1420" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="call" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666" value="Cuộc gọi bình thường&#xa;A ↔ B" vertex="1">
+          <mxGeometry height="80" width="180" x="510" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="detect" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656" value="Phát hiện cuộc gọi&#xa;đang hoạt động" vertex="1">
+          <mxGeometry height="110" width="160" x="760" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="popup" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" value="Popup trên thiết bị A&#xa;Chọn ngôn ngữ vào/ra&#xa;Bắt đầu hoặc Đóng" vertex="1">
+          <mxGeometry height="110" width="210" x="990" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656" value="A bấm&#xa;Bắt đầu dịch?" vertex="1">
+          <mxGeometry height="110" width="140" x="1260" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="idle" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666" value="Không dịch&#xa;Popup đóng / cuộc gọi giữ nguyên" vertex="1">
+          <mxGeometry height="80" width="230" x="1210" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="pipeline" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1" value="Bật công cụ dịch&#xa;Hai chiều audio qua thiết bị A&#xa;(A→B và B→A)" vertex="1">
+          <mxGeometry height="100" width="250" x="790" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="Voice sau xử lý&#xa;phát vào cuộc gọi&#xa;Không hiển thị text/phụ đề" vertex="1">
+          <mxGeometry height="100" width="260" x="1050" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="stop" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450" value="A dừng dịch / kết thúc&#xa;Hủy session, queue, buffer" vertex="1">
+          <mxGeometry height="80" width="250" x="790" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#666666" target="app" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="app" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#666666" target="call" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="call" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#666666" target="detect" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="detect" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#666666;fontSize=11" target="popup" value="Có cuộc gọi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="popup" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#666666;fontSize=11" target="decision" value="Hiển thị">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#B85450;fontColor=#B85450;fontSize=11" target="idle" value="Không / Đóng">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#82B366;fontColor=#548235;fontSize=11" target="pipeline" value="Có / Bắt đầu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="pipeline" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#6C8EBF;fontSize=11" target="out" value="Voice dịch đến B">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#6C8EBF;fontSize=11" target="b" value="Ghi vào/đọc từ cuộc gọi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#B85450;dashed=1;fontSize=11" target="stop" value="Điều khiển từ A">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="02 - Luồng xử lý hai chiều qua thiết bị A" id="processing-one-user">
+    <mxGraphModel grid="1" page="1" gridSize="10" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" value="Luồng xử lý — chỉ thiết bị A chạy công cụ dịch" style="text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;fontColor=#163B4A" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="800" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="n" value="Đường nét liền: A→B. Đường nét đứt/đỏ: B→A. B không cài app; chỉ có âm thanh đi qua cuộc gọi." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=12" vertex="1" parent="1">
+          <mxGeometry x="40" y="85" width="900" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="Thiết bị A&#xa;mic + app dịch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="call" value="Ứng dụng gọi điện&#xa;(cuộc gọi bình thường)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="280" y="270" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="tool" value="Công cụ dịch voice&#xa;trên thiết bị A" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="540" y="270" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b" value="Thiết bị/loa B&#xa;không chạy app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666" vertex="1" parent="1">
+          <mxGeometry x="1040" y="270" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a_in" value="A nói&#xa;mic A" style="ellipse;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF" vertex="1" parent="1">
+          <mxGeometry x="40" y="500" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="a_pre" value="A→B: thu + AEC/NS/AGC + VAD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#6C8EBF" vertex="1" parent="1">
+          <mxGeometry x="230" y="470" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a_ai" value="ASR → ngữ cảnh → NMT&#xa;→ voice conversion/TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" vertex="1" parent="1">
+          <mxGeometry x="510" y="470" width="230" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a_out" value="Audio dịch A→B&#xa;phát vào đường gọi" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#6C8EBF" vertex="1" parent="1">
+          <mxGeometry x="800" y="470" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b_in" value="B nói&#xa;mic/đường gọi" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b_pre" value="B→A: audio B được&#xa;thu qua đường gọi trên A" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF0E8;strokeColor=#C55A11" vertex="1" parent="1">
+          <mxGeometry x="230" y="670" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="b_ai" value="Khử vọng/nhiễu + VAD&#xa;→ ASR → ngữ cảnh → NMT&#xa;→ voice conversion/TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11" vertex="1" parent="1">
+          <mxGeometry x="510" y="650" width="230" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="b_out" value="Audio dịch B→A&#xa;phát vào loa A" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF0E8;strokeColor=#C55A11" vertex="1" parent="1">
+          <mxGeometry x="800" y="670" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="Mic A" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#6C8EBF" edge="1" parent="1" source="a_in" target="a_pre">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#6C8EBF" edge="1" parent="1" source="a_pre" target="a_ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#6C8EBF" edge="1" parent="1" source="a_ai" target="a_out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#6C8EBF" edge="1" parent="1" source="a_out" target="b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="Audio từ cuộc gọi" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11;dashed=1" edge="1" parent="1" source="b_in" target="b_pre">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11;dashed=1" edge="1" parent="1" source="b_pre" target="b_ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11;dashed=1" edge="1" parent="1" source="b_ai" target="b_out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11;dashed=1" edge="1" parent="1" source="b_out" target="a1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="Audio route qua A" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" edge="1" parent="1" source="call" target="tool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" edge="1" parent="1" source="tool" target="b">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="03 - Phân tích và neural network" id="neural-network">
+    <mxGraphModel dx="1410" dy="775" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;fontColor=#163B4A" value="Luồng phân tích và xử lý bằng neural network" vertex="1">
+          <mxGeometry height="40" width="900" x="40" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=12" value="Text chỉ là intermediate state nội bộ. Đầu ra tới người nghe là audio; voice identity là mục tiêu cần model/voice conversion riêng, không phải TTS mặc định." vertex="1">
+          <mxGeometry height="55" width="1200" x="40" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="raw" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="PCM audio&#xa;16 kHz mono" vertex="1">
+          <mxGeometry height="80" width="150" x="40" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="nn1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#6C8EBF" value="Neural / signal front-end&#xa;AEC · NS · AGC&#xa;lọc echo và nhiễu" vertex="1">
+          <mxGeometry height="130" width="200" x="260" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="vad" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2F8;strokeColor=#6C8EBF" value="Silero VAD&#xa;đoán speech / non-speech" vertex="1">
+          <mxGeometry height="80" width="190" x="530" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="asr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" value="Faster-Whisper&#xa;Neural ASR encoder-decoder&#xa;partial + final transcript nội bộ" vertex="1">
+          <mxGeometry height="120" width="230" x="790" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="ctx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" value="Context builder&#xa;chunk overlap + commit policy&#xa;vài lượt gần nhất + glossary" vertex="1">
+          <mxGeometry height="120" width="230" x="1090" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="nmt" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" value="NLLB / NMT baseline&#xa;VI ⇄ EN ...&#xa;dịch theo cụm và ngữ cảnh" vertex="1">
+          <mxGeometry height="120" width="230" x="1390" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="voice" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11" value="Voice preservation branch&#xa;speaker embedding + voice conversion&#xa;(mục tiêu nâng cao, cần consent)" vertex="1">
+          <mxGeometry height="120" width="260" x="1090" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="tts" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11" value="TTS neural vocoder&#xa;Google Cloud TTS / provider&#xa;audio chunk ngôn ngữ đích" vertex="1">
+          <mxGeometry height="120" width="230" x="1390" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="play" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="Jitter buffer + AudioTrack&#xa;phát vào đường gọi&#xa;Không hiển thị text" vertex="1">
+          <mxGeometry height="100" width="260" x="1375" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="adaptive" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6" value="Adaptive Controller&#xa;latency · confidence · queue depth&#xa;điều chỉnh chunk / compute / VAD" vertex="1">
+          <mxGeometry height="120" width="260" x="520" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666" value="Training / adaptation library&#xa;audio được cấp phép + vùng giọng&#xa;glossary + correction có consent" vertex="1">
+          <mxGeometry height="120" width="280" x="40" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="raw" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" target="nn1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="nn1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" target="vad" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="vad" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" target="asr" value="speech chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="asr" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" target="ctx" value="partial/final">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="ctx" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666" target="nmt" value="context">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="nmt" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#82B366" target="voice" value="translated text nội bộ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="voice" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11" target="tts" value="voice identity / prosody">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="tts" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#C55A11" target="play" value="audio chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="adaptive" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#9673A6;dashed=1" target="vad" value="policy feedback">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="data" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666;dashed=1" target="ctx" value="model/prompt/glossary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="data" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#666666;dashed=1" target="asr" value="model adaptation offline">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="asr" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#9673A6;dashed=1" target="adaptive" value="latency/confidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="tts" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#9673A6;dashed=1" target="adaptive" value="queue depth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="04 - Training giọng và vùng miền" id="voice-training">
+    <mxGraphModel dx="1162" dy="639" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="vt-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#163B4A;" value="Training giọng và vùng miền — công cụ của người dùng A" vertex="1">
+          <mxGeometry height="48" width="1400" x="40" y="25" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-scope" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="A chủ động thiết lập training. B không cài app và không tự cung cấp dữ liệu. Không lấy giọng B từ cuộc gọi để training khi chưa có đồng ý và quyền sử dụng riêng." vertex="1">
+          <mxGeometry height="65" width="1690" x="40" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-stage1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;fontStyle=1;fontColor=#163B4A;" value="1  Dữ liệu được phép và kiểm soát chất lượng" vertex="1">
+          <mxGeometry height="38" width="900" x="40" y="177" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Mẫu giọng A&lt;br&gt;ghi riêng trong app" vertex="1">
+          <mxGeometry height="100" width="200" x="40" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-corpus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Corpus tiếng Việt vùng miền&lt;br&gt;có license rõ ràng" vertex="1">
+          <mxGeometry height="100" width="200" x="40" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-rights" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Consent, provenance, phạm vi sử dụng, retention, quyền xóa.&lt;br&gt;Không tự dùng ghi âm cuộc gọi." vertex="1">
+          <mxGeometry height="120" width="230" x="330" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-qc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Kiểm tra audio&lt;br&gt;SNR · clipping · trùng lặp · nhiều người nói" vertex="1">
+          <mxGeometry height="120" width="230" x="650" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-ann" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="VAD, cắt cụm, transcript được kiểm tra&lt;br&gt;nhãn ngôn ngữ / vùng / speaker ID" vertex="1">
+          <mxGeometry height="120" width="250" x="970" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-split" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Chia train / validation / test&lt;br&gt;ASR: speaker-disjoint&lt;br&gt;Giữ giọng: câu held-out" vertex="1">
+          <mxGeometry height="120" width="260" x="1320" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-stage2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;fontStyle=1;fontColor=#163B4A;" value="2  Các nhánh thích nghi độc lập" vertex="1">
+          <mxGeometry height="38" width="900" x="40" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-asr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Hiểu giọng vùng miền&lt;br&gt;Baseline Faster-Whisper&lt;br&gt;prompt / LoRA nếu có lợi" vertex="1">
+          <mxGeometry height="125" width="300" x="1820" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-context" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Hiểu cách nói theo ngữ cảnh&lt;br&gt;glossary · cụm từ · correction&lt;br&gt;không ghép nghĩa từng từ" vertex="1">
+          <mxGeometry height="125" width="300" x="1620" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-embed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Bảo toàn giọng (riêng)&lt;br&gt;speaker encoder → embedding&lt;br&gt;chỉ từ người đã đồng ý" vertex="1">
+          <mxGeometry height="125" width="300" x="880" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-stage3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=19;fontStyle=1;fontColor=#163B4A;" value="3  Đánh giá, phát hành và thu hồi" vertex="1">
+          <mxGeometry height="38" width="900" x="40" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Test độc lập: WER/CER theo vùng, độ đúng bản dịch, speaker similarity, intelligibility, MOS và p50/p95 độ trễ" vertex="1">
+          <mxGeometry height="125" width="330" x="325" y="825" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-gate" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Đạt chất lượng&lt;br&gt;và độ trễ?" vertex="1">
+          <mxGeometry height="115" width="190" x="740" y="1107.5" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-reg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Model registry&lt;br&gt;version · checksum · license&lt;br&gt;consent scope · rollback" vertex="1">
+          <mxGeometry height="125" width="250" x="1230" y="1005" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-run" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Runtime trên A&lt;br&gt;chỉ nạp profile hợp lệ&lt;br&gt;đầu ra là voice, không phụ đề" vertex="1">
+          <mxGeometry height="125" width="310" x="1540" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-reject" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Không đạt: giữ baseline / TTS chuẩn; bổ sung dữ liệu hợp lệ rồi đo lại." vertex="1">
+          <mxGeometry height="90" width="430" x="190" y="1110" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-revoke" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="A rút consent: xóa mẫu và embedding/profile; truy vết model bị ảnh hưởng để revoke hoặc retrain." vertex="1">
+          <mxGeometry height="90" width="550" x="1200" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e1" edge="1" parent="1" source="vt-a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#6C8EBF;fontSize=12;" target="vt-rights" value="consent A">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e2" edge="1" parent="1" source="vt-corpus" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#6C8EBF;fontSize=12;" target="vt-rights" value="license">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e3" edge="1" parent="1" source="vt-rights" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#D6B656;fontSize=12;" target="vt-qc" value="đủ quyền">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e4" edge="1" parent="1" source="vt-qc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#666666;fontSize=12;" target="vt-ann" value="mẫu đạt QC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e5" edge="1" parent="1" source="vt-ann" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#666666;fontSize=12;" target="vt-split" value="nhãn được kiểm tra">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e6" edge="1" parent="1" source="vt-split" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-asr" value="speaker-disjoint">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e7" edge="1" parent="1" source="vt-split" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-context" value="corpus / glossary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e8" edge="1" parent="1" source="vt-split" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#C55A11;fontSize=12;" target="vt-embed" value="mẫu người có phép">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e9" edge="1" parent="1" source="vt-embed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#C55A11;fontSize=12;" target="vt-vc" value="speaker embedding">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e10" edge="1" parent="1" source="vt-asr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-eval" value="held-out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e11" edge="1" parent="1" source="vt-context" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-eval" value="held-out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e12" edge="1" parent="1" source="vt-vc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#C55A11;fontSize=12;" target="vt-eval" value="held-out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e13" edge="1" parent="1" source="vt-eval" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#D6B656;fontSize=12;" target="vt-gate" value="metrics">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e14" edge="1" parent="1" source="vt-vc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-reg" value="Đạt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e15" edge="1" parent="1" source="vt-reg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#9673A6;fontSize=12;" target="vt-run" value="profile hợp lệ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e16" edge="1" parent="1" source="vt-gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#B85450;fontSize=12;" target="vt-reject" value="Không đạt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e17" edge="1" parent="1" source="vt-a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#B85450;fontSize=12;dashed=1;" target="vt-revoke" value="thu hồi bất kỳ lúc nào">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e18" edge="1" parent="1" source="vt-revoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#B85450;fontSize=12;dashed=1;" target="vt-reg" value="revoke / lineage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vt-e19" edge="1" parent="1" source="vt-revoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#B85450;fontSize=12;dashed=1;" target="vt-run" value="ngừng nạp profile">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="D9m3OOCocdOI96_7cuv8-7" edge="1" parent="1" source="vt-gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;strokeColor=#82B366;fontSize=12;" target="vt-vc" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="945" y="887" as="sourcePoint" />
+            <mxPoint x="1050" y="887" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="vt-vc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4D6;strokeColor=#C55A11;fontSize=14;spacing=9;align=center;verticalAlign=middle;" value="Voice conversion / adapter xuyên ngôn ngữ&lt;br&gt;nhánh nghiên cứu; TTS giọng chuẩn là fallback" vertex="1">
+          <mxGeometry height="125" width="330" x="862" y="830" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
