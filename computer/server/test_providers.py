@@ -19,10 +19,25 @@ def test_fake_provider_has_explicit_capabilities_and_internal_text():
 
     result = provider.translate(b"audio", "vi", "en")
 
-    assert len(result.audio) == 8000 and any(result.audio)
+    # A near-empty payload still yields the audible floor of one second.
+    assert len(result.audio) == 32_000 and any(result.audio)
     assert result.transcript == "test utterance"
     assert result.translation.startswith("[vi->en]")
     assert provider.capabilities == {"asr": "fake", "nmt": "fake", "tts": "fake"}
+
+
+def test_fake_provider_tone_length_tracks_the_recording():
+    provider = FakeTranslationProvider()
+
+    short = provider.translate(bytes(32 * 500), "vi", "en")
+    four_seconds = provider.translate(bytes(32 * 4_000), "vi", "en")
+    oversized = provider.translate(bytes(32 * 30_000), "vi", "en")
+
+    assert len(short.audio) == 32_000  # clamped up to the 1 s floor
+    assert len(four_seconds.audio) == 128_000  # matches the recording
+    assert len(oversized.audio) == 128_000  # clamped down to the 4 s ceiling
+    assert all(len(chunk) == len(short.audio) or len(chunk) % 2 == 0
+               for chunk in (short.audio, four_seconds.audio, oversized.audio))
 
 
 PCM = b"\xff\x00\x01\x80" * 160

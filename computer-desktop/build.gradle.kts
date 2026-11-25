@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.collol.voicetranslation"
-version = "0.2.4"
+version = "0.2.5"
 val backendResources = layout.buildDirectory.dir("generated/desktop-resources")
 val pythonExecutable = providers.gradleProperty("pythonExecutable")
     .orElse(providers.environmentVariable("PYTHON"))

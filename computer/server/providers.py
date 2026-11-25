@@ -31,6 +31,12 @@ class TranslationProvider(Protocol):
     def translate(self, audio: bytes, source_lang: str, target_lang: str) -> TranslationResult: ...
 
 
+TONE_MIN_MS = 1000
+TONE_MAX_MS = 4000
+# The negotiated format is 16 kHz mono pcm_s16le: 16 samples and 32 bytes per millisecond.
+BYTES_PER_MS = 32
+
+
 class FakeTranslationProvider:
     """Deterministic ASR -> NMT -> TTS stand-in for local integration tests."""
 
@@ -44,9 +50,17 @@ class FakeTranslationProvider:
         transcript = "test utterance"
         translation = f"[{source_lang}->{target_lang}] TEST UTTERANCE"
         frequency = 440 if source_lang == "vi" else 660
+        # Playback length follows the recording so an operator can hear that the
+        # whole utterance round-tripped, bounded to an audible minimum and a
+        # short maximum so a stray long input cannot hold the speaker for long.
+        captured_ms = len(audio) // BYTES_PER_MS
+        duration_ms = min(max(captured_ms, TONE_MIN_MS), TONE_MAX_MS)
+        samples = duration_ms * 16
+        fade = min(samples // 2, 80)  # 5 ms ramp each way, avoids speaker pops.
         synthesized = b"".join(
-            struct.pack("<h", round(2000 * math.sin(2 * math.pi * frequency * i / 16000)))
-            for i in range(4000)
+            struct.pack("<h", round(2000 * math.sin(2 * math.pi * frequency * i / 16000)
+                                    * min(1.0, i / fade, (samples - 1 - i) / fade)))
+            for i in range(samples)
         )
         return TranslationResult(synthesized, transcript, translation)
 
