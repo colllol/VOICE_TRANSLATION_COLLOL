@@ -59,11 +59,10 @@ class SessionCoordinator:
         session = self.get(session_id)
         if session.state is not SessionState.DISCONNECTED_GRACE:
             raise ValueError("session is not resumable")
-        if not secrets.compare_digest(session.resume_token, resume_token):
+        if not secrets.compare_digest(session.resume_token.encode(), resume_token.encode()):
             raise ValueError("invalid resume token")
         assert session.disconnected_at is not None
-        if time.monotonic() - session.disconnected_at > self.grace_seconds:
-            session.state = SessionState.CANCELLED
+        if time.monotonic() - session.disconnected_at >= self.grace_seconds:
             raise ValueError("session is not resumable")
         session.state = SessionState.ACTIVE
         session.disconnected_at = None
@@ -73,3 +72,6 @@ class SessionCoordinator:
         session = self.get(session_id)
         if session.state not in (SessionState.CANCELLED, SessionState.COMPLETED):
             session.state = SessionState.CANCELLED
+
+    def forget(self, session_id: str) -> None:
+        self._sessions.pop(session_id, None)

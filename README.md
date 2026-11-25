@@ -2,6 +2,8 @@
 
 Prototype Android voice-to-voice translation controlled by user A. The first demo targets a controlled VoIP/audio integration; user B does not install or control the translation tool.
 
+For the laptop-first rewrite, see the [release roadmap and acceptance checklist](management/ROADMAP.md).
+
 ## Repository layout
 
 - `android/` — Kotlin/Jetpack Compose app boundary and VT-023 setup UI

@@ -1,5 +1,8 @@
 """SQLite persistence tests for operator configuration and session metadata."""
 import sqlite3
+from contextlib import closing
+
+import pytest
 
 from computer.server.storage import SQLiteStore
 
@@ -28,3 +31,21 @@ def test_store_keeps_only_non_sensitive_session_metadata(tmp_path):
     columns = store.session_columns()
     assert "transcript" not in columns
     assert "audio" not in columns
+
+
+def test_upgrade_existing_unversioned_database_preserves_config(tmp_path):
+    database = tmp_path / "legacy.db"
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("CREATE TABLE operator_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        connection.execute("INSERT INTO operator_config VALUES ('source_lang', 'fr')")
+    assert SQLiteStore(database).get_config("source_lang") == "fr"
+    with closing(sqlite3.connect(database)) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone() == (1,)
+
+
+def test_store_rejects_unknown_newer_schema(tmp_path):
+    database = tmp_path / "future.db"
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("PRAGMA user_version = 999")
+    with pytest.raises(ValueError, match="schema version"):
+        SQLiteStore(database)
